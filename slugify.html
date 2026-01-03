@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Slugify Utility</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1c2333;
+      --muted: #5b677a;
+      --border: #d7dfea;
+      --accent: #2b6de8;
+      --accent-dark: #1e4dad;
+      --success: #2a9d5b;
+      --danger: #d64545;
+      --shadow: 0 10px 24px rgba(24, 35, 52, 0.12);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f141d;
+        --card: #161b25;
+        --text: #f2f4f8;
+        --muted: #a7b0bf;
+        --border: #2a3140;
+        --accent: #6aa5ff;
+        --accent-dark: #4e7bcc;
+        --success: #4fd38e;
+        --danger: #ff6b6b;
+        --shadow: 0 12px 26px rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      margin: 0 0 8px;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 540px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 0.98rem;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .row > * {
+      flex: 1 1 auto;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .output {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 12px;
+    }
+
+    .output input {
+      flex: 1 1 auto;
+    }
+
+    button {
+      border: none;
+      background: var(--accent);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .history-item {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+      display: grid;
+      gap: 6px;
+    }
+
+    .history-item strong {
+      font-size: 0.95rem;
+    }
+
+    .history-item code {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tests {
+      margin-top: 8px;
+      padding: 14px;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+    }
+
+    .tests ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+
+    .test-pass {
+      color: var(--success);
+    }
+
+    .test-fail {
+      color: var(--danger);
+    }
+
+    footer {
+      margin-top: 32px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Slugify Playground</h1>
+        <p>Create clean, URL-friendly slugs from any text. Adjust options, copy results instantly, and keep a local history of your recent slugs.</p>
+      </div>
+      <span class="pill" id="historyCount">History: 0</span>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <label for="sourceText">Source text</label>
+        <textarea id="sourceText" placeholder="Paste or type text here..."></textarea>
+
+        <div class="controls" style="margin-top: 16px;">
+          <div>
+            <label for="separator">Separator</label>
+            <select id="separator">
+              <option value="-" selected>- (dash)</option>
+              <option value="_">_ (underscore)</option>
+              <option value=".">. (dot)</option>
+              <option value="/">/ (slash)</option>
+            </select>
+          </div>
+          <div>
+            <label for="maxLength">Max length</label>
+            <input id="maxLength" type="text" value="60" />
+          </div>
+          <div>
+            <label for="caseMode">Case</label>
+            <select id="caseMode">
+              <option value="lower" selected>lowercase</option>
+              <option value="upper">UPPERCASE</option>
+              <option value="none">Keep original</option>
+            </select>
+          </div>
+          <div>
+            <label for="collapse">Collapse separators</label>
+            <select id="collapse">
+              <option value="yes" selected>Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="output">
+          <input id="slugOutput" type="text" readonly placeholder="Your slug will appear here" />
+          <button id="copyButton">Copy</button>
+        </div>
+        <div class="row" style="margin-top: 12px;">
+          <button class="secondary" id="saveHistory">Save to history</button>
+          <span id="copyStatus" class="pill" aria-live="polite">Awaiting copy</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <h2 style="margin: 0 0 6px; font-size: 1.3rem;">History</h2>
+            <p style="margin: 0; color: var(--muted);">Stored locally in your browser.</p>
+          </div>
+          <button class="secondary" id="clearHistory">Clear history</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top: 0;">Embedded tests</h2>
+        <p style="margin-top: 0; color: var(--muted);">Run validation against the slugify function.</p>
+        <div class="row">
+          <button id="runTests">Run tests</button>
+          <span id="testSummary" class="pill">Not run</span>
+        </div>
+        <div id="testResults" class="tests"></div>
+      </div>
+    </section>
+
+    <footer>
+      Built as a single-file utility. No external dependencies.
+    </footer>
+  </main>
+
+  <script>
+    const sourceText = document.getElementById("sourceText");
+    const separator = document.getElementById("separator");
+    const maxLength = document.getElementById("maxLength");
+    const caseMode = document.getElementById("caseMode");
+    const collapse = document.getElementById("collapse");
+    const slugOutput = document.getElementById("slugOutput");
+    const copyButton = document.getElementById("copyButton");
+    const copyStatus = document.getElementById("copyStatus");
+    const saveHistory = document.getElementById("saveHistory");
+    const historyList = document.getElementById("historyList");
+    const historyCount = document.getElementById("historyCount");
+    const clearHistory = document.getElementById("clearHistory");
+    const runTests = document.getElementById("runTests");
+    const testResults = document.getElementById("testResults");
+    const testSummary = document.getElementById("testSummary");
+
+    const HISTORY_KEY = "slugify_history";
+    const HISTORY_LIMIT = 12;
+
+    const normalizeMaxLength = () => {
+      const parsed = Number.parseInt(maxLength.value, 10);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        maxLength.value = "0";
+        return 0;
+      }
+      maxLength.value = String(parsed);
+      return parsed;
+    };
+
+    const slugify = (text, options) => {
+      const config = {
+        separator: options.separator || "-",
+        maxLength: Number.isFinite(options.maxLength) ? options.maxLength : 0,
+        caseMode: options.caseMode || "lower",
+        collapse: options.collapse !== false,
+      };
+
+      let value = text.normalize("NFKD");
+      value = value.replace(/[\u0300-\u036f]/g, "");
+      value = value.replace(/[^\p{Letter}\p{Number}]+/gu, config.separator);
+
+      if (config.collapse) {
+        const escaped = config.separator.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const collapseRegex = new RegExp(`${escaped}{2,}`, "g");
+        value = value.replace(collapseRegex, config.separator);
+      }
+
+      value = value.replace(new RegExp(`^${config.separator}|${config.separator}$`, "g"), "");
+
+      if (config.caseMode === "lower") {
+        value = value.toLowerCase();
+      } else if (config.caseMode === "upper") {
+        value = value.toUpperCase();
+      }
+
+      if (config.maxLength > 0 && value.length > config.maxLength) {
+        value = value.slice(0, config.maxLength);
+        value = value.replace(new RegExp(`${config.separator}$`, "g"), "");
+      }
+
+      return value;
+    };
+
+    const buildOptions = () => ({
+      separator: separator.value,
+      maxLength: normalizeMaxLength(),
+      caseMode: caseMode.value,
+      collapse: collapse.value === "yes",
+    });
+
+    const updateSlug = () => {
+      const text = sourceText.value.trim();
+      slugOutput.value = slugify(text, buildOptions());
+    };
+
+    const loadHistory = () => {
+      const data = localStorage.getItem(HISTORY_KEY);
+      if (!data) return [];
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        console.warn("Failed to parse history", error);
+        return [];
+      }
+    };
+
+    const saveHistoryList = (items) => {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(items));
+      renderHistory(items);
+    };
+
+    const renderHistory = (items) => {
+      historyList.innerHTML = "";
+      if (!items.length) {
+        historyList.innerHTML = "<p style=\"color: var(--muted);\">No history yet. Save a slug to see it here.</p>";
+      }
+      items.forEach((item, index) => {
+        const container = document.createElement("div");
+        container.className = "history-item";
+        container.innerHTML = `
+          <strong>${item.source}</strong>
+          <div><code>${item.slug}</code></div>
+          <div class="history-actions">
+            <button class="secondary" data-action="copy" data-index="${index}">Copy</button>
+            <button class="secondary" data-action="reuse" data-index="${index}">Reuse</button>
+          </div>
+        `;
+        historyList.appendChild(container);
+      });
+      historyCount.textContent = `History: ${items.length}`;
+    };
+
+    const addHistoryItem = () => {
+      const slug = slugOutput.value.trim();
+      const source = sourceText.value.trim();
+      if (!slug || !source) return;
+      const items = loadHistory();
+      items.unshift({ source, slug, createdAt: new Date().toISOString() });
+      saveHistoryList(items.slice(0, HISTORY_LIMIT));
+    };
+
+    const handleCopy = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        copyStatus.textContent = "Copied!";
+        copyStatus.style.borderColor = "var(--success)";
+      } catch (error) {
+        console.warn("Copy failed", error);
+        copyStatus.textContent = "Copy failed";
+        copyStatus.style.borderColor = "var(--danger)";
+      }
+      setTimeout(() => {
+        copyStatus.textContent = "Awaiting copy";
+        copyStatus.style.borderColor = "var(--border)";
+      }, 1800);
+    };
+
+    const handleHistoryClick = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const action = target.dataset.action;
+      const index = Number.parseInt(target.dataset.index, 10);
+      const items = loadHistory();
+      const item = items[index];
+      if (!item) return;
+      if (action === "copy") {
+        handleCopy(item.slug);
+      }
+      if (action === "reuse") {
+        sourceText.value = item.source;
+        updateSlug();
+      }
+    };
+
+    const runEmbeddedTests = () => {
+      const tests = [
+        {
+          name: "Lowercase basic",
+          input: "Hello World",
+          options: { separator: "-", maxLength: 0, caseMode: "lower", collapse: true },
+          expected: "hello-world",
+        },
+        {
+          name: "Uppercase with underscores",
+          input: "Make It Work",
+          options: { separator: "_", maxLength: 0, caseMode: "upper", collapse: true },
+          expected: "MAKE_IT_WORK",
+        },
+        {
+          name: "Remove accents",
+          input: "Crème brûlée",
+          options: { separator: "-", maxLength: 0, caseMode: "lower", collapse: true },
+          expected: "creme-brulee",
+        },
+        {
+          name: "Truncate at max length",
+          input: "A long title with many words",
+          options: { separator: "-", maxLength: 12, caseMode: "lower", collapse: true },
+          expected: "a-long-title",
+        },
+        {
+          name: "Collapse separators disabled",
+          input: "Hello   world",
+          options: { separator: "-", maxLength: 0, caseMode: "lower", collapse: false },
+          expected: "hello---world",
+        },
+      ];
+
+      let passed = 0;
+      const list = document.createElement("ul");
+      tests.forEach((test) => {
+        const actual = slugify(test.input, test.options);
+        const item = document.createElement("li");
+        if (actual === test.expected) {
+          passed += 1;
+          item.className = "test-pass";
+          item.textContent = `PASS: ${test.name}`;
+        } else {
+          item.className = "test-fail";
+          item.textContent = `FAIL: ${test.name} (expected "${test.expected}", got "${actual}")`;
+        }
+        list.appendChild(item);
+      });
+
+      testResults.innerHTML = "";
+      testResults.appendChild(list);
+      testSummary.textContent = `${passed}/${tests.length} passed`;
+      testSummary.style.borderColor = passed === tests.length ? "var(--success)" : "var(--danger)";
+    };
+
+    sourceText.addEventListener("input", updateSlug);
+    separator.addEventListener("change", updateSlug);
+    maxLength.addEventListener("input", updateSlug);
+    caseMode.addEventListener("change", updateSlug);
+    collapse.addEventListener("change", updateSlug);
+    copyButton.addEventListener("click", () => handleCopy(slugOutput.value));
+    saveHistory.addEventListener("click", addHistoryItem);
+    clearHistory.addEventListener("click", () => saveHistoryList([]));
+    historyList.addEventListener("click", handleHistoryClick);
+    runTests.addEventListener("click", runEmbeddedTests);
+
+    renderHistory(loadHistory());
+    updateSlug();
+  </script>
+</body>
+</html>
