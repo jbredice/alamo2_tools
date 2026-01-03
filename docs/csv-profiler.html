@@ -531,6 +531,7 @@
     let conn;
     let schema = [];
     let cachedRowCount = 0;
+    let initPromise;
 
     const escapeIdent = (value) => `"${String(value).replace(/"/g, "\"\"")}"`;
     const escapeLiteral = (value) => String(value).replace(/'/g, "''");
@@ -581,6 +582,13 @@
       db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
       await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
       conn = await db.connect();
+    };
+
+    const ensureDuckDB = async () => {
+      if (!initPromise) {
+        initPromise = initDuckDB();
+      }
+      await initPromise;
     };
 
     const registerFile = async (file) => {
@@ -967,18 +975,25 @@
     const handleFile = async (file) => {
       if (!file) return;
       setStatus(loadStatus, `Loading ${file.name}…`);
-      await registerFile(file);
-      await createTable();
-      await updateSchema();
-      await updateRowCount();
-      refreshColumnSelectors();
-      renderGroupByOptions();
-      renderFilters();
-      await updateProfile();
-      await updatePreview();
-      await updateCharts();
-      setStatus(loadStatus, `Loaded ${file.name}`, true);
-      saveState();
+      try {
+        await ensureDuckDB();
+        await registerFile(file);
+        await createTable();
+        await updateSchema();
+        await updateRowCount();
+        refreshColumnSelectors();
+        renderGroupByOptions();
+        renderFilters();
+        await updateProfile();
+        await updatePreview();
+        await updateCharts();
+        setStatus(loadStatus, `Loaded ${file.name}`, true);
+        saveState();
+      } catch (error) {
+        console.error("Failed to load CSV", error);
+        const message = error && error.message ? error.message : "Check the console for details.";
+        setStatus(loadStatus, `Failed to load CSV. ${message}`);
+      }
     };
 
     const loadDemoDataset = () => {
@@ -1111,17 +1126,23 @@ North,Corporate,2024-02,16510,66,3
     const boot = async () => {
       loadState();
       applyStateToControls();
-      await initDuckDB();
-      await handleFile(loadDemoDataset());
-      histogramColumn.value = appState.histogramColumn || histogramColumn.value;
-      categoryColumn.value = appState.categoryColumn || categoryColumn.value;
-      metricColumn.value = appState.metricColumn || metricColumn.value;
-      histogramBins.value = appState.histogramBins;
-      categoryLimit.value = appState.categoryLimit;
-      metricType.value = appState.metricType;
-      resultLimit.value = appState.resultLimit;
-      pageSize.value = appState.pageSize;
-      await updateCharts();
+      try {
+        await ensureDuckDB();
+        await handleFile(loadDemoDataset());
+        histogramColumn.value = appState.histogramColumn || histogramColumn.value;
+        categoryColumn.value = appState.categoryColumn || categoryColumn.value;
+        metricColumn.value = appState.metricColumn || metricColumn.value;
+        histogramBins.value = appState.histogramBins;
+        categoryLimit.value = appState.categoryLimit;
+        metricType.value = appState.metricType;
+        resultLimit.value = appState.resultLimit;
+        pageSize.value = appState.pageSize;
+        await updateCharts();
+      } catch (error) {
+        console.error("Failed to initialize DuckDB", error);
+        const message = error && error.message ? error.message : "Check the console for details.";
+        setStatus(loadStatus, `Failed to initialize DuckDB. ${message}`);
+      }
     };
 
     boot();
