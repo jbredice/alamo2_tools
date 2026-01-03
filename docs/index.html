@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Docs Landing Pad</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --sky: #89c9ff;
+      --sun: #ffd36a;
+      --ink: #1d2433;
+      --foam: #f6fbff;
+      --berry: #b04cff;
+      --grass: #66d38c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(circle at top, var(--sun), var(--sky) 55%, #4d9de0 100%);
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    .scene {
+      position: relative;
+      width: min(900px, 90vw);
+      padding: clamp(2rem, 5vw, 4rem);
+      background: rgba(246, 251, 255, 0.9);
+      border-radius: 32px;
+      box-shadow: 0 24px 60px rgba(26, 41, 60, 0.25);
+      border: 3px dashed rgba(26, 41, 60, 0.15);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 4vw, 4rem);
+      letter-spacing: 0.04em;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      font-size: clamp(1.1rem, 2vw, 1.4rem);
+      line-height: 1.6;
+    }
+
+    .subtitle {
+      font-style: italic;
+      margin-bottom: 2rem;
+    }
+
+    .orbit {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.2rem;
+      margin-top: 2.2rem;
+    }
+
+    .tile {
+      padding: 1.2rem 1.4rem;
+      border-radius: 20px;
+      background: white;
+      border: 2px solid rgba(26, 41, 60, 0.1);
+      box-shadow: 0 12px 20px rgba(26, 41, 60, 0.12);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tile:hover {
+      transform: translateY(-6px) rotate(-1deg);
+      box-shadow: 0 18px 30px rgba(26, 41, 60, 0.18);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      color: rgba(26, 41, 60, 0.7);
+    }
+
+    .sparkles {
+      position: absolute;
+      inset: -20vh;
+      background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.7) 2px, transparent 2px),
+        radial-gradient(circle, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
+      background-size: 120px 120px, 80px 80px;
+      animation: drift 25s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes drift {
+      from {
+        transform: translateY(0);
+      }
+      to {
+        transform: translateY(60px);
+      }
+    }
+
+    .pet {
+      position: absolute;
+      right: clamp(1rem, 6vw, 3rem);
+      bottom: clamp(-1rem, -2vw, -0.5rem);
+      width: clamp(120px, 18vw, 160px);
+      aspect-ratio: 1;
+      background: radial-gradient(circle at 30% 30%, white 20%, #f5f0ff 60%, #e3d7ff 100%);
+      border-radius: 40% 40% 55% 55%;
+      border: 3px solid rgba(26, 41, 60, 0.1);
+      box-shadow: inset -10px -18px 30px rgba(176, 76, 255, 0.18);
+    }
+
+    .pet::before,
+    .pet::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: var(--ink);
+      border-radius: 50%;
+      top: 36%;
+    }
+
+    .pet::before {
+      left: 34%;
+    }
+
+    .pet::after {
+      right: 34%;
+    }
+
+    .pet-mouth {
+      position: absolute;
+      width: 40px;
+      height: 20px;
+      border-bottom: 4px solid var(--ink);
+      border-radius: 0 0 40px 40px;
+      left: 50%;
+      top: 52%;
+      transform: translateX(-50%);
+    }
+
+    .pet-hat {
+      position: absolute;
+      width: 60%;
+      height: 50%;
+      left: 20%;
+      top: -15%;
+      border-radius: 60% 60% 40% 40%;
+      background: linear-gradient(135deg, var(--berry), #6f4cff);
+      transform: rotate(-6deg);
+      box-shadow: 0 8px 18px rgba(111, 76, 255, 0.35);
+    }
+
+    .pet-hat::after {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: var(--sun);
+      border-radius: 50%;
+      top: -12px;
+      right: -6px;
+    }
+
+    .balloon {
+      position: absolute;
+      left: clamp(1rem, 4vw, 4rem);
+      top: clamp(-3rem, -6vw, -1rem);
+      width: clamp(80px, 14vw, 130px);
+      aspect-ratio: 3 / 4;
+      border-radius: 50% 50% 45% 45%;
+      background: radial-gradient(circle at 30% 30%, #fff0a6, #ff8bd1 70%);
+      box-shadow: inset -10px -20px 30px rgba(176, 76, 255, 0.18);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .balloon::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 95%;
+      width: 4px;
+      height: 90px;
+      background: rgba(26, 41, 60, 0.3);
+    }
+
+    @keyframes float {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-18px);
+      }
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.95rem;
+      color: rgba(26, 41, 60, 0.6);
+    }
+
+    @media (max-width: 600px) {
+      .tile:hover {
+        transform: translateY(-4px);
+      }
+
+      .pet {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sparkles" aria-hidden="true"></div>
+  <main class="scene">
+    <div class="balloon" aria-hidden="true"></div>
+    <h1>Welcome, Wandering Documentation!</h1>
+    <p class="subtitle">You have arrived at the Very Official Landing Pad.</p>
+    <p>
+      The docs are brewing behind the scenes, steeped in curiosity and a hint of cinnamon.
+      Until they unveil their secrets, enjoy this pocket of whimsy floating in the sky.
+    </p>
+
+    <section class="orbit" aria-label="Tiny celebrations">
+      <div class="tile">
+        <div class="badge">✨ Star Fact</div>
+        <p>Every slug of text can learn new tricks.</p>
+      </div>
+      <div class="tile">
+        <div class="badge">🎈 Sky Note</div>
+        <p>This landing page promises zero links and infinite calm.</p>
+      </div>
+      <div class="tile">
+        <div class="badge">🌿 Garden Gossip</div>
+        <p>The docs directory now feels right at home.</p>
+      </div>
+    </section>
+
+    <footer>Stay curious. The rest of the story is just out of frame.</footer>
+    <div class="pet" aria-hidden="true">
+      <div class="pet-hat"></div>
+      <div class="pet-mouth"></div>
+    </div>
+  </main>
+</body>
+</html>
