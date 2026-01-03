@@ -73,6 +73,9 @@
       border: 2px solid rgba(26, 41, 60, 0.1);
       box-shadow: 0 12px 20px rgba(26, 41, 60, 0.12);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
     }
 
     .tile:hover {
@@ -236,15 +239,15 @@
       Until they unveil their secrets, enjoy this pocket of whimsy floating in the sky.
     </p>
 
-    <section class="orbit" aria-label="Tiny celebrations">
-      <div class="tile">
-        <div class="badge">✨ Star Fact</div>
-        <p>Every slug of text can learn new tricks.</p>
-      </div>
-      <div class="tile">
-        <div class="badge">🎈 Sky Note</div>
-        <p>This landing page promises zero links and infinite calm.</p>
-      </div>
+    <section class="orbit" aria-label="Tools">
+      <a class="tile" href="./slugify.html">
+        <div class="badge">✨ Slugify</div>
+        <p>Turn phrases into tidy, URL-ready slugs.</p>
+      </a>
+      <a class="tile" href="./csv-profiler.html">
+        <div class="badge">📊 CSV Profiler</div>
+        <p>Profile CSVs, explore filters, and chart top values.</p>
+      </a>
       <div class="tile">
         <div class="badge">🌿 Garden Gossip</div>
         <p>The docs directory now feels right at home.</p>

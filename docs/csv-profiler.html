@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CSV Profiler</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1d2333;
+      --muted: #5c6577;
+      --border: #d7dfea;
+      --accent: #2f7cf6;
+      --accent-dark: #1d5fc4;
+      --success: #2f9d65;
+      --warning: #ef8a17;
+      --shadow: 0 12px 28px rgba(24, 35, 52, 0.12);
+      --chip: rgba(47, 124, 246, 0.1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f141d;
+        --card: #161b25;
+        --text: #f1f4f9;
+        --muted: #a7b0bf;
+        --border: #283142;
+        --accent: #6aa5ff;
+        --accent-dark: #4b82d2;
+        --success: #4fd38e;
+        --warning: #ffb452;
+        --shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+        --chip: rgba(106, 165, 255, 0.2);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+      display: grid;
+      gap: 20px;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 2.2rem;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.5;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      text-align: center;
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    button {
+      border: none;
+      background: var(--accent);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+    }
+
+    button.secondary:hover {
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      color: var(--text);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--chip);
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .table-wrap {
+      max-height: 320px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .row > * {
+      flex: 1 1 auto;
+    }
+
+    .filter-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .filter-item {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      align-items: center;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+    }
+
+    .chart {
+      min-height: 260px;
+    }
+
+    .status {
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--warning) 15%, transparent);
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    .success {
+      background: color-mix(in srgb, var(--success) 18%, transparent);
+    }
+
+    .preview-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .checkbox-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .checkbox-grid label {
+      font-weight: 500;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sql-box {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+      font-family: "Fira Code", "SFMono-Regular", ui-monospace, monospace;
+      font-size: 0.85rem;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>CSV Profiler</h1>
+        <p>Drop in a CSV, inspect schema + profiling stats, and explore with filters, group-bys, and quick charts. Everything runs locally in your browser.</p>
+      </div>
+      <div class="toolbar">
+        <span class="pill" id="rowCount">Rows: —</span>
+        <button id="resetState" class="secondary">Reset saved state</button>
+      </div>
+    </header>
+
+    <section class="card grid grid-2">
+      <div>
+        <h2 style="margin-top: 0;">Import CSV</h2>
+        <div id="dropzone" class="dropzone">
+          <p><strong>Drag & drop</strong> a CSV file here</p>
+          <p class="muted">or choose a file from your computer.</p>
+          <input type="file" id="fileInput" accept=".csv,text/csv" />
+        </div>
+        <div class="row" style="margin-top: 12px;">
+          <button id="loadDemo">Load demo dataset</button>
+          <span id="loadStatus" class="status">Awaiting CSV…</span>
+        </div>
+      </div>
+      <div>
+        <h2 style="margin-top: 0;">Schema snapshot</h2>
+        <div class="table-wrap" style="max-height: 260px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Column</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody id="schemaBody"></tbody>
+          </table>
+        </div>
+        <p class="muted" id="schemaNote" style="margin-top: 8px;">Load a CSV to view detected columns.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top: 0;">Profiling overview</h2>
+      <p class="muted">Null %, distinct count, min/max, and top values for the selected columns. Profiling runs against the full dataset, so large files may take a moment.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Null %</th>
+              <th>Distinct</th>
+              <th>Min</th>
+              <th>Max</th>
+            </tr>
+          </thead>
+          <tbody id="profileBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid grid-2">
+      <div class="card">
+        <h2 style="margin-top: 0;">Histogram (numeric)</h2>
+        <div class="row">
+          <div>
+            <label for="histogramColumn">Numeric column</label>
+            <select id="histogramColumn"></select>
+          </div>
+          <div>
+            <label for="histogramBins">Bins</label>
+            <select id="histogramBins">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="30">30</option>
+              <option value="40">40</option>
+            </select>
+          </div>
+        </div>
+        <div id="histogramChart" class="chart"></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top: 0;">Top values (categorical)</h2>
+        <div class="row">
+          <div>
+            <label for="categoryColumn">Categorical column</label>
+            <select id="categoryColumn"></select>
+          </div>
+          <div>
+            <label for="categoryLimit">Top N</label>
+            <select id="categoryLimit">
+              <option value="8">8</option>
+              <option value="12" selected>12</option>
+              <option value="20">20</option>
+            </select>
+          </div>
+        </div>
+        <div id="categoryChart" class="chart"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top: 0;">Explore with filters + group by</h2>
+      <div class="grid grid-2">
+        <div>
+          <div class="row" style="justify-content: space-between;">
+            <h3 style="margin: 0;">Filters</h3>
+            <button id="addFilter" class="secondary">Add filter</button>
+          </div>
+          <div id="filterList" class="filter-list"></div>
+        </div>
+        <div>
+          <h3 style="margin-top: 0;">Group by</h3>
+          <p class="muted">Select 1-2 dimensions, then pick a metric. Charts are best with a single group column.</p>
+          <div id="groupByOptions" class="checkbox-grid"></div>
+          <div class="grid grid-3" style="margin-top: 12px;">
+            <div>
+              <label for="metricType">Metric</label>
+              <select id="metricType">
+                <option value="count" selected>Count</option>
+                <option value="sum">Sum</option>
+                <option value="avg">Average</option>
+              </select>
+            </div>
+            <div>
+              <label for="metricColumn">Metric column</label>
+              <select id="metricColumn"></select>
+            </div>
+            <div>
+              <label for="resultLimit">Limit</label>
+              <select id="resultLimit">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="runExplore">Run exploration</button>
+        <span id="exploreStatus" class="status">Waiting for query…</span>
+      </div>
+      <div style="margin-top: 12px;">
+        <label for="sqlPreview">Generated SQL</label>
+        <div id="sqlPreview" class="sql-box"></div>
+      </div>
+    </section>
+
+    <section class="grid grid-2">
+      <div class="card">
+        <div class="preview-controls">
+          <h2 style="margin: 0;">Preview table</h2>
+          <div class="row" style="gap: 8px;">
+            <label for="pageSize" style="margin: 0;">Rows per page</label>
+            <select id="pageSize">
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+            <button id="prevPage" class="secondary">Prev</button>
+            <button id="nextPage" class="secondary">Next</button>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-top: 12px;">
+          <table>
+            <thead id="previewHead"></thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <p class="muted" id="pageInfo" style="margin-top: 8px;">Page 1</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top: 0;">Group-by chart</h2>
+        <div id="groupChart" class="chart"></div>
+        <p class="muted" id="groupChartNote">Run an exploration query with a group-by to render a chart.</p>
+      </div>
+    </section>
+
+    <footer>
+      Built with DuckDB-WASM, Observable Plot, and a sprinkle of localStorage.
+    </footer>
+  </main>
+
+  <script type="module">
+    import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-browser.mjs";
+    import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.11/+esm";
+
+    const stateKey = "csv-profiler-state";
+    const rowCount = document.getElementById("rowCount");
+    const resetStateButton = document.getElementById("resetState");
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    const loadDemo = document.getElementById("loadDemo");
+    const loadStatus = document.getElementById("loadStatus");
+    const schemaBody = document.getElementById("schemaBody");
+    const schemaNote = document.getElementById("schemaNote");
+    const profileBody = document.getElementById("profileBody");
+    const histogramColumn = document.getElementById("histogramColumn");
+    const histogramBins = document.getElementById("histogramBins");
+    const histogramChart = document.getElementById("histogramChart");
+    const categoryColumn = document.getElementById("categoryColumn");
+    const categoryLimit = document.getElementById("categoryLimit");
+    const categoryChart = document.getElementById("categoryChart");
+    const filterList = document.getElementById("filterList");
+    const addFilter = document.getElementById("addFilter");
+    const groupByOptions = document.getElementById("groupByOptions");
+    const metricType = document.getElementById("metricType");
+    const metricColumn = document.getElementById("metricColumn");
+    const resultLimit = document.getElementById("resultLimit");
+    const runExplore = document.getElementById("runExplore");
+    const exploreStatus = document.getElementById("exploreStatus");
+    const sqlPreview = document.getElementById("sqlPreview");
+    const previewHead = document.getElementById("previewHead");
+    const previewBody = document.getElementById("previewBody");
+    const pageSize = document.getElementById("pageSize");
+    const prevPage = document.getElementById("prevPage");
+    const nextPage = document.getElementById("nextPage");
+    const pageInfo = document.getElementById("pageInfo");
+    const groupChart = document.getElementById("groupChart");
+    const groupChartNote = document.getElementById("groupChartNote");
+
+    const appState = {
+      filters: [],
+      histogramColumn: "",
+      histogramBins: "20",
+      categoryColumn: "",
+      categoryLimit: "12",
+      groupBy: [],
+      metricType: "count",
+      metricColumn: "",
+      resultLimit: "50",
+      page: 0,
+      pageSize: "50",
+    };
+
+    let db;
+    let conn;
+    let schema = [];
+    let cachedRowCount = 0;
+
+    const escapeIdent = (value) => `"${String(value).replace(/"/g, "\"\"")}"`;
+    const escapeLiteral = (value) => String(value).replace(/'/g, "''");
+
+    const numericTypes = new Set(["TINYINT", "SMALLINT", "INTEGER", "BIGINT", "HUGEINT", "UBIGINT", "FLOAT", "DOUBLE", "REAL", "DECIMAL", "NUMERIC"]);
+
+    const setStatus = (element, message, success = false) => {
+      element.textContent = message;
+      element.classList.toggle("success", success);
+    };
+
+    const saveState = () => {
+      localStorage.setItem(stateKey, JSON.stringify(appState));
+    };
+
+    const loadState = () => {
+      const raw = localStorage.getItem(stateKey);
+      if (!raw) return;
+      try {
+        const stored = JSON.parse(raw);
+        Object.assign(appState, stored);
+      } catch (error) {
+        console.warn("Failed to load state", error);
+      }
+    };
+
+    const resetState = () => {
+      localStorage.removeItem(stateKey);
+      Object.assign(appState, {
+        filters: [],
+        histogramColumn: "",
+        histogramBins: "20",
+        categoryColumn: "",
+        categoryLimit: "12",
+        groupBy: [],
+        metricType: "count",
+        metricColumn: "",
+        resultLimit: "50",
+        page: 0,
+        pageSize: "50",
+      });
+    };
+
+    const initDuckDB = async () => {
+      const bundles = duckdb.getJsDelivrBundles();
+      const bundle = await duckdb.selectBundle(bundles);
+      const worker = new Worker(bundle.mainWorker);
+      db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
+      await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+      conn = await db.connect();
+    };
+
+    const registerFile = async (file) => {
+      await db.registerFileHandle("dataset.csv", file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+    };
+
+    const createTable = async () => {
+      await conn.query("DROP TABLE IF EXISTS dataset");
+      await conn.query("CREATE TABLE dataset AS SELECT * FROM read_csv_auto('dataset.csv', SAMPLE_SIZE=50000, HEADER=true, IGNORE_ERRORS=true)");
+    };
+
+    const updateSchema = async () => {
+      const result = await conn.query("PRAGMA table_info('dataset')");
+      schema = result.toArray().map((row) => ({ name: row.name, type: String(row.type).toUpperCase() }));
+      schemaBody.innerHTML = "";
+      schema.forEach((col) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${col.name}</td><td>${col.type}</td>`;
+        schemaBody.appendChild(tr);
+      });
+      schemaNote.textContent = schema.length ? "" : "No schema detected.";
+    };
+
+    const updateRowCount = async () => {
+      const result = await conn.query("SELECT COUNT(*) as count FROM dataset");
+      cachedRowCount = Number(result.toArray()[0].count);
+      rowCount.textContent = `Rows: ${cachedRowCount.toLocaleString()}`;
+    };
+
+    const updateProfile = async () => {
+      profileBody.innerHTML = "";
+      for (const column of schema) {
+        const colName = escapeIdent(column.name);
+        const result = await conn.query(`
+          SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN ${colName} IS NULL OR ${colName} = '' THEN 1 ELSE 0 END) as nulls,
+            COUNT(DISTINCT ${colName}) as distinct,
+            MIN(${colName}) as min,
+            MAX(${colName}) as max
+          FROM dataset
+        `);
+        const row = result.toArray()[0];
+        const total = Number(row.total);
+        const nulls = Number(row.nulls);
+        const nullPct = total === 0 ? "0.0" : ((nulls / total) * 100).toFixed(1);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${column.name}</td>
+          <td>${column.type}</td>
+          <td>${nullPct}%</td>
+          <td>${row.distinct}</td>
+          <td>${row.min ?? ""}</td>
+          <td>${row.max ?? ""}</td>
+        `;
+        profileBody.appendChild(tr);
+      }
+    };
+
+    const isNumeric = (type) => numericTypes.has(type);
+
+    const refreshColumnSelectors = () => {
+      const numericColumns = schema.filter((col) => isNumeric(col.type));
+      const categoricalColumns = schema.filter((col) => !isNumeric(col.type));
+
+      const fillSelect = (select, options, selected) => {
+        select.innerHTML = "";
+        options.forEach((col) => {
+          const option = document.createElement("option");
+          option.value = col.name;
+          option.textContent = col.name;
+          select.appendChild(option);
+        });
+        if (options.length && selected && options.some((col) => col.name === selected)) {
+          select.value = selected;
+        }
+      };
+
+      fillSelect(histogramColumn, numericColumns, appState.histogramColumn);
+      fillSelect(metricColumn, numericColumns, appState.metricColumn);
+      fillSelect(categoryColumn, categoricalColumns, appState.categoryColumn);
+
+      if (!numericColumns.length) {
+        histogramColumn.innerHTML = "<option value=''>No numeric columns</option>";
+        metricColumn.innerHTML = "<option value=''>No numeric columns</option>";
+      }
+      if (!categoricalColumns.length) {
+        categoryColumn.innerHTML = "<option value=''>No categorical columns</option>";
+      }
+
+      histogramBins.value = appState.histogramBins;
+      categoryLimit.value = appState.categoryLimit;
+      metricType.value = appState.metricType;
+      resultLimit.value = appState.resultLimit;
+    };
+
+    const renderGroupByOptions = () => {
+      groupByOptions.innerHTML = "";
+      schema.forEach((col) => {
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = col.name;
+        checkbox.checked = appState.groupBy.includes(col.name);
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            appState.groupBy.push(col.name);
+          } else {
+            appState.groupBy = appState.groupBy.filter((item) => item !== col.name);
+          }
+          saveState();
+        });
+        label.appendChild(checkbox);
+        label.append(col.name);
+        groupByOptions.appendChild(label);
+      });
+    };
+
+    const renderFilters = () => {
+      filterList.innerHTML = "";
+      if (!appState.filters.length) {
+        filterList.innerHTML = "<p class=\"muted\">No filters yet. Add one to get started.</p>";
+      }
+      appState.filters.forEach((filter, index) => {
+        const container = document.createElement("div");
+        container.className = "filter-item";
+        container.innerHTML = `
+          <div>
+            <label>Column</label>
+            <select data-field="column"></select>
+          </div>
+          <div>
+            <label>Operator</label>
+            <select data-field="operator">
+              <option value="=">=</option>
+              <option value="!=">!=</option>
+              <option value=">">></option>
+              <option value=">=">>=</option>
+              <option value="<"><</option>
+              <option value="<="><=</option>
+              <option value="contains">contains</option>
+              <option value="starts">starts with</option>
+              <option value="ends">ends with</option>
+              <option value="is null">is null</option>
+              <option value="is not null">is not null</option>
+            </select>
+          </div>
+          <div>
+            <label>Value</label>
+            <input type="text" data-field="value" placeholder="Value" />
+          </div>
+          <div style="align-self: end;">
+            <button class="secondary" data-action="remove">Remove</button>
+          </div>
+        `;
+        const select = container.querySelector("select[data-field='column']");
+        schema.forEach((col) => {
+          const option = document.createElement("option");
+          option.value = col.name;
+          option.textContent = col.name;
+          select.appendChild(option);
+        });
+        select.value = filter.column || (schema[0] ? schema[0].name : "");
+        container.querySelector("select[data-field='operator']").value = filter.operator || "=";
+        container.querySelector("input[data-field='value']").value = filter.value || "";
+
+        container.addEventListener("input", (event) => {
+          const field = event.target.dataset.field;
+          if (!field) return;
+          filter[field] = event.target.value;
+          saveState();
+        });
+        container.querySelector("button[data-action='remove']").addEventListener("click", () => {
+          appState.filters.splice(index, 1);
+          renderFilters();
+          saveState();
+        });
+        filterList.appendChild(container);
+      });
+    };
+
+    const buildWhereClause = () => {
+      const clauses = [];
+      appState.filters.forEach((filter) => {
+        if (!filter.column) return;
+        const col = escapeIdent(filter.column);
+        const op = filter.operator || "=";
+        const value = filter.value ?? "";
+        if (op === "is null") {
+          clauses.push(`${col} IS NULL`);
+          return;
+        }
+        if (op === "is not null") {
+          clauses.push(`${col} IS NOT NULL`);
+          return;
+        }
+        if (value === "") return;
+        const escaped = escapeLiteral(value);
+        if (op === "contains") {
+          clauses.push(`${col} LIKE '%${escaped}%'`);
+        } else if (op === "starts") {
+          clauses.push(`${col} LIKE '${escaped}%'`);
+        } else if (op === "ends") {
+          clauses.push(`${col} LIKE '%${escaped}'`);
+        } else {
+          clauses.push(`${col} ${op} '${escaped}'`);
+        }
+      });
+      if (!clauses.length) return "";
+      return `WHERE ${clauses.join(" AND ")}`;
+    };
+
+    const buildExploreQuery = () => {
+      const whereClause = buildWhereClause();
+      const groupColumns = appState.groupBy.map(escapeIdent);
+      let metricSql = "COUNT(*) as count";
+      if (appState.metricType !== "count" && appState.metricColumn) {
+        metricSql = `${appState.metricType.toUpperCase()}(${escapeIdent(appState.metricColumn)}) as value`;
+      } else if (appState.metricType === "count") {
+        metricSql = "COUNT(*) as value";
+      }
+      let query = "SELECT ";
+      if (groupColumns.length) {
+        query += `${groupColumns.join(", ")}, ${metricSql}`;
+      } else {
+        query += `${metricSql}`;
+      }
+      query += " FROM dataset ";
+      if (whereClause) {
+        query += `${whereClause} `;
+      }
+      if (groupColumns.length) {
+        query += `GROUP BY ${groupColumns.join(", ")} `;
+        query += `ORDER BY value DESC `;
+      }
+      query += `LIMIT ${Number.parseInt(appState.resultLimit, 10) || 50}`;
+      return query;
+    };
+
+    const renderPreviewTable = (rows) => {
+      previewHead.innerHTML = "";
+      previewBody.innerHTML = "";
+      if (!rows.length) {
+        previewBody.innerHTML = "<tr><td>No rows found.</td></tr>";
+        return;
+      }
+      const headers = Object.keys(rows[0]);
+      const headRow = document.createElement("tr");
+      headers.forEach((header) => {
+        const th = document.createElement("th");
+        th.textContent = header;
+        headRow.appendChild(th);
+      });
+      previewHead.appendChild(headRow);
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        headers.forEach((header) => {
+          const td = document.createElement("td");
+          const value = row[header];
+          td.textContent = value === null || value === undefined ? "" : value;
+          tr.appendChild(td);
+        });
+        previewBody.appendChild(tr);
+      });
+    };
+
+    const updatePreview = async () => {
+      const whereClause = buildWhereClause();
+      const limit = Number.parseInt(appState.pageSize, 10) || 50;
+      const offset = appState.page * limit;
+      const query = `SELECT * FROM dataset ${whereClause} LIMIT ${limit} OFFSET ${offset}`;
+      const result = await conn.query(query);
+      renderPreviewTable(result.toArray());
+      pageInfo.textContent = `Page ${appState.page + 1} (showing ${limit} rows)`;
+    };
+
+    const updateHistogram = async () => {
+      histogramChart.innerHTML = "";
+      if (!histogramColumn.value) return;
+      const col = escapeIdent(histogramColumn.value);
+      const whereClause = buildWhereClause();
+      const filterClause = whereClause ? `${whereClause} AND ${col} IS NOT NULL` : `WHERE ${col} IS NOT NULL`;
+      const query = `SELECT ${col} as value FROM dataset ${filterClause} LIMIT 5000`;
+      const result = await conn.query(query);
+      const data = result.toArray().map((row) => ({ value: Number(row.value) })).filter((row) => Number.isFinite(row.value));
+      if (!data.length) {
+        histogramChart.innerHTML = "<p class=\"muted\">No numeric values to chart.</p>";
+        return;
+      }
+      const plot = Plot.plot({
+        height: 240,
+        marginLeft: 40,
+        y: { grid: true },
+        marks: [
+          Plot.rectY(data, Plot.binX({ y: "count" }, { x: "value", thresholds: Number(histogramBins.value) })),
+          Plot.ruleY([0]),
+        ],
+      });
+      histogramChart.appendChild(plot);
+    };
+
+    const updateCategoryChart = async () => {
+      categoryChart.innerHTML = "";
+      if (!categoryColumn.value) return;
+      const col = escapeIdent(categoryColumn.value);
+      const whereClause = buildWhereClause();
+      const limit = Number.parseInt(categoryLimit.value, 10) || 12;
+      const query = `
+        SELECT ${col} as value, COUNT(*) as count
+        FROM dataset
+        ${whereClause}
+        GROUP BY ${col}
+        ORDER BY count DESC
+        LIMIT ${limit}
+      `;
+      const result = await conn.query(query);
+      const data = result.toArray().map((row) => ({ value: String(row.value ?? "(null)"), count: Number(row.count) }));
+      if (!data.length) {
+        categoryChart.innerHTML = "<p class=\"muted\">No categorical values to chart.</p>";
+        return;
+      }
+      const plot = Plot.plot({
+        height: 240,
+        marginLeft: 120,
+        x: { grid: true },
+        marks: [
+          Plot.barX(data, { x: "count", y: "value" }),
+          Plot.ruleX([0]),
+        ],
+      });
+      categoryChart.appendChild(plot);
+    };
+
+    const runExploreQuery = async () => {
+      const query = buildExploreQuery();
+      sqlPreview.textContent = query;
+      setStatus(exploreStatus, "Running query…");
+      const result = await conn.query(query);
+      const rows = result.toArray();
+      renderPreviewTable(rows);
+      setStatus(exploreStatus, `Returned ${rows.length} rows`, true);
+      renderGroupChart(rows);
+    };
+
+    const renderGroupChart = (rows) => {
+      groupChart.innerHTML = "";
+      groupChartNote.textContent = "";
+      if (!rows.length) {
+        groupChartNote.textContent = "No data to chart.";
+        return;
+      }
+      const groupKeys = appState.groupBy;
+      if (groupKeys.length !== 1) {
+        groupChartNote.textContent = "Select exactly one group-by column to render a chart.";
+        return;
+      }
+      const key = groupKeys[0];
+      const data = rows.map((row) => ({ label: row[key], value: row.value ?? row.count ?? 0 }));
+      const plot = Plot.plot({
+        height: 260,
+        marginLeft: 120,
+        x: { grid: true },
+        marks: [
+          Plot.barX(data, { x: "value", y: "label" }),
+          Plot.ruleX([0]),
+        ],
+      });
+      groupChart.appendChild(plot);
+    };
+
+    const updateCharts = async () => {
+      await updateHistogram();
+      await updateCategoryChart();
+    };
+
+    const applyStateToControls = () => {
+      histogramBins.value = appState.histogramBins;
+      categoryLimit.value = appState.categoryLimit;
+      metricType.value = appState.metricType;
+      resultLimit.value = appState.resultLimit;
+      pageSize.value = appState.pageSize;
+    };
+
+    const handleFile = async (file) => {
+      if (!file) return;
+      setStatus(loadStatus, `Loading ${file.name}…`);
+      await registerFile(file);
+      await createTable();
+      await updateSchema();
+      await updateRowCount();
+      refreshColumnSelectors();
+      renderGroupByOptions();
+      renderFilters();
+      await updateProfile();
+      await updatePreview();
+      await updateCharts();
+      setStatus(loadStatus, `Loaded ${file.name}`, true);
+      saveState();
+    };
+
+    const loadDemoDataset = () => {
+      const csv = `region,segment,month,revenue,orders,returns
+East,Consumer,2024-01,12042,88,4
+East,Consumer,2024-02,13500,92,5
+East,Corporate,2024-01,17890,64,3
+East,Corporate,2024-02,16220,59,2
+West,Consumer,2024-01,9800,70,6
+West,Consumer,2024-02,10420,76,4
+West,Corporate,2024-01,14080,55,1
+West,Corporate,2024-02,15240,60,3
+South,Consumer,2024-01,8600,68,2
+South,Consumer,2024-02,9300,72,3
+South,Corporate,2024-01,11020,48,1
+South,Corporate,2024-02,11890,52,2
+North,Consumer,2024-01,10560,80,5
+North,Consumer,2024-02,11240,84,4
+North,Corporate,2024-01,15800,62,2
+North,Corporate,2024-02,16510,66,3
+`;
+      return new File([csv], "demo.csv", { type: "text/csv" });
+    };
+
+    dropzone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      dropzone.classList.remove("dragover");
+      const file = event.dataTransfer.files[0];
+      await handleFile(file);
+    });
+
+    fileInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      await handleFile(file);
+    });
+
+    loadDemo.addEventListener("click", async () => {
+      await handleFile(loadDemoDataset());
+    });
+
+    addFilter.addEventListener("click", () => {
+      appState.filters.push({ column: schema[0] ? schema[0].name : "", operator: "=", value: "" });
+      renderFilters();
+      saveState();
+    });
+
+    histogramColumn.addEventListener("change", () => {
+      appState.histogramColumn = histogramColumn.value;
+      saveState();
+      updateHistogram();
+    });
+
+    histogramBins.addEventListener("change", () => {
+      appState.histogramBins = histogramBins.value;
+      saveState();
+      updateHistogram();
+    });
+
+    categoryColumn.addEventListener("change", () => {
+      appState.categoryColumn = categoryColumn.value;
+      saveState();
+      updateCategoryChart();
+    });
+
+    categoryLimit.addEventListener("change", () => {
+      appState.categoryLimit = categoryLimit.value;
+      saveState();
+      updateCategoryChart();
+    });
+
+    metricType.addEventListener("change", () => {
+      appState.metricType = metricType.value;
+      saveState();
+    });
+
+    metricColumn.addEventListener("change", () => {
+      appState.metricColumn = metricColumn.value;
+      saveState();
+    });
+
+    resultLimit.addEventListener("change", () => {
+      appState.resultLimit = resultLimit.value;
+      saveState();
+    });
+
+    runExplore.addEventListener("click", async () => {
+      await runExploreQuery();
+    });
+
+    pageSize.addEventListener("change", async () => {
+      appState.pageSize = pageSize.value;
+      appState.page = 0;
+      saveState();
+      await updatePreview();
+    });
+
+    prevPage.addEventListener("click", async () => {
+      appState.page = Math.max(0, appState.page - 1);
+      saveState();
+      await updatePreview();
+    });
+
+    nextPage.addEventListener("click", async () => {
+      appState.page += 1;
+      saveState();
+      await updatePreview();
+    });
+
+    resetStateButton.addEventListener("click", async () => {
+      resetState();
+      applyStateToControls();
+      renderFilters();
+      renderGroupByOptions();
+      if (schema.length) {
+        refreshColumnSelectors();
+        await updatePreview();
+        await updateCharts();
+      }
+    });
+
+    const boot = async () => {
+      loadState();
+      applyStateToControls();
+      await initDuckDB();
+      await handleFile(loadDemoDataset());
+      histogramColumn.value = appState.histogramColumn || histogramColumn.value;
+      categoryColumn.value = appState.categoryColumn || categoryColumn.value;
+      metricColumn.value = appState.metricColumn || metricColumn.value;
+      histogramBins.value = appState.histogramBins;
+      categoryLimit.value = appState.categoryLimit;
+      metricType.value = appState.metricType;
+      resultLimit.value = appState.resultLimit;
+      pageSize.value = appState.pageSize;
+      await updateCharts();
+    };
+
+    boot();
+  </script>
+</body>
+</html>
