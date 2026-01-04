@@ -747,16 +747,16 @@
     };
 
     const DUCKDB_VERSION = "1.29.0";
-    const DUCKDB_DIST = new URL(`./vendor/duckdb-wasm/${DUCKDB_VERSION}/dist/`, import.meta.url);
+    const DUCKDB_DIST = `./vendor/duckdb-wasm/${DUCKDB_VERSION}/dist/`;
     const DUCKDB_BUNDLES = {
       mvp: {
-        mainModule: new URL("duckdb-mvp.wasm", DUCKDB_DIST),
-        mainWorker: new URL("duckdb-browser-mvp.worker.js", DUCKDB_DIST),
+        mainModule: DUCKDB_DIST + "duckdb-mvp.wasm",
+        mainWorker: DUCKDB_DIST + "duckdb-browser-mvp.worker.js",
       },
       coi: {
-        mainModule: new URL("duckdb-coi.wasm", DUCKDB_DIST),
-        mainWorker: new URL("duckdb-browser-coi.worker.js", DUCKDB_DIST),
-        pthreadWorker: new URL("duckdb-browser-coi.pthread.worker.js", DUCKDB_DIST),
+        mainModule: DUCKDB_DIST + "duckdb-coi.wasm",
+        mainWorker: DUCKDB_DIST + "duckdb-browser-coi.worker.js",
+        pthreadWorker: DUCKDB_DIST + "duckdb-browser-coi.pthread.worker.js",
       },
     };
 
@@ -765,12 +765,11 @@
       coiStatus.textContent = String(crossOriginIsolated);
       const bundleName = crossOriginIsolated ? "coi" : "mvp";
       const bundle = DUCKDB_BUNDLES[bundleName];
-      if (!bundle) {
-        throw new Error(`DuckDB bundle "${bundleName}" is not configured.`);
-      }
+      if (!bundle) throw new Error(`DuckDB bundle '${bundleName}' is not configured.`);
+      if (bundleName === "coi" && !crossOriginIsolated) throw new Error("COI bundle requires crossOriginIsolated=true");
       setDuckdbStatus("pending", bundleName);
       addLog(`Initializing DuckDB with ${bundleName} bundle (COI=${crossOriginIsolated}).`);
-      const worker = new Worker(new URL(bundle.mainWorker, import.meta.url), { type: "module" });
+      const worker = new Worker(bundle.mainWorker, { type: "module" });
       db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
       await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
       conn = await db.connect();
