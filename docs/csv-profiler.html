@@ -246,6 +246,38 @@
       background: color-mix(in srgb, var(--success) 18%, transparent);
     }
 
+    .status-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      font-size: 0.9rem;
+    }
+
+    .status-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+    }
+
+    .status-item strong {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    details pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      max-height: 240px;
+      overflow: auto;
+    }
+
     .preview-controls {
       display: flex;
       flex-wrap: wrap;
@@ -306,8 +338,31 @@
       <div class="toolbar">
         <span class="pill" id="rowCount">Rows: —</span>
         <button id="resetState" class="secondary">Reset saved state</button>
+        <button id="hardReset" class="secondary">Hard reset</button>
       </div>
     </header>
+
+    <section class="card">
+      <h2 style="margin-top: 0;">System Status</h2>
+      <div class="status-grid">
+        <div class="status-item">
+          <strong>DuckDB init</strong>
+          <span id="duckdbStatus">pending</span>
+        </div>
+        <div class="status-item">
+          <strong>crossOriginIsolated</strong>
+          <span id="coiStatus">—</span>
+        </div>
+        <div class="status-item">
+          <strong>DuckDB bundle</strong>
+          <span id="bundleStatus">—</span>
+        </div>
+      </div>
+      <details id="duckdbErrorDetails" style="margin-top: 12px; display: none;">
+        <summary>DuckDB init error details</summary>
+        <pre id="duckdbErrorText"></pre>
+      </details>
+    </section>
 
     <section class="card grid grid-2">
       <div>
@@ -480,15 +535,43 @@
     <footer>
       Built with DuckDB-WASM, Observable Plot, and a sprinkle of localStorage.
     </footer>
+
+    <details class="card">
+      <summary><strong>Debug</strong></summary>
+      <p class="muted">Last 50 log lines and environment info.</p>
+      <pre id="debugLogs">Log output will appear here.</pre>
+      <div class="status-grid" style="margin-top: 12px;">
+        <div class="status-item">
+          <strong>User agent</strong>
+          <span id="envUserAgent">—</span>
+        </div>
+        <div class="status-item">
+          <strong>Origin</strong>
+          <span id="envOrigin">—</span>
+        </div>
+        <div class="status-item">
+          <strong>file://</strong>
+          <span id="envFile">—</span>
+        </div>
+      </div>
+    </details>
   </main>
 
   <script type="module">
     import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-browser.mjs";
     import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.11/+esm";
+    import { csvParse, csvParseRows } from "https://cdn.jsdelivr.net/npm/d3-dsv@3.0.1/+esm";
 
-    const stateKey = "csv-profiler-state";
+    const storagePrefix = "csv-profiler:";
+    const stateKey = `${storagePrefix}state`;
+    const duckdbStatus = document.getElementById("duckdbStatus");
+    const coiStatus = document.getElementById("coiStatus");
+    const bundleStatus = document.getElementById("bundleStatus");
+    const duckdbErrorDetails = document.getElementById("duckdbErrorDetails");
+    const duckdbErrorText = document.getElementById("duckdbErrorText");
     const rowCount = document.getElementById("rowCount");
     const resetStateButton = document.getElementById("resetState");
+    const hardResetButton = document.getElementById("hardReset");
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("fileInput");
     const loadDemo = document.getElementById("loadDemo");
@@ -519,6 +602,10 @@
     const pageInfo = document.getElementById("pageInfo");
     const groupChart = document.getElementById("groupChart");
     const groupChartNote = document.getElementById("groupChartNote");
+    const debugLogs = document.getElementById("debugLogs");
+    const envUserAgent = document.getElementById("envUserAgent");
+    const envOrigin = document.getElementById("envOrigin");
+    const envFile = document.getElementById("envFile");
 
     const appState = {
       filters: [],
@@ -539,6 +626,9 @@
     let schema = [];
     let cachedRowCount = 0;
     let initPromise;
+    let duckdbReady = false;
+    let duckdbFailed = false;
+    let currentLoadId = 0;
 
     const escapeIdent = (value) => `"${String(value).replace(/"/g, "\"\"")}"`;
     const escapeLiteral = (value) => String(value).replace(/'/g, "''");
@@ -550,18 +640,43 @@
       element.classList.toggle("success", success);
     };
 
+    const logLines = [];
+    const addLog = (message, level = "info") => {
+      const timestamp = new Date().toISOString();
+      const line = `[${timestamp}] [${level}] ${message}`;
+      logLines.push(line);
+      if (logLines.length > 50) {
+        logLines.shift();
+      }
+      debugLogs.textContent = logLines.join("\n");
+    };
+
+    const formatError = (error) => {
+      if (!error) return "Unknown error";
+      if (typeof error === "string") return error;
+      return `${error.message || String(error)}${error.stack ? `\n${error.stack}` : ""}`;
+    };
+
+    const clearPrefixedStorage = () => {
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith(storagePrefix))
+        .forEach((key) => localStorage.removeItem(key));
+    };
+
     const saveState = () => {
       localStorage.setItem(stateKey, JSON.stringify(appState));
     };
 
     const loadState = () => {
-      const raw = localStorage.getItem(stateKey);
-      if (!raw) return;
       try {
+        const raw = localStorage.getItem(stateKey);
+        if (!raw) return;
         const stored = JSON.parse(raw);
         Object.assign(appState, stored);
       } catch (error) {
         console.warn("Failed to load state", error);
+        addLog("Failed to load saved state. Clearing localStorage keys.", "warn");
+        clearPrefixedStorage();
       }
     };
 
@@ -582,20 +697,100 @@
       });
     };
 
+    const setDuckdbStatus = (status, bundleName = "—", error = null) => {
+      duckdbStatus.textContent = status;
+      bundleStatus.textContent = bundleName;
+      duckdbErrorDetails.style.display = error ? "block" : "none";
+      duckdbErrorText.textContent = error ? formatError(error) : "";
+      if (error) {
+        addLog(`DuckDB init failed: ${formatError(error)}`, "error");
+      }
+    };
+
+    const setDuckdbControlsEnabled = (enabled) => {
+      const controls = [
+        addFilter,
+        histogramColumn,
+        histogramBins,
+        categoryColumn,
+        categoryLimit,
+        metricType,
+        metricColumn,
+        resultLimit,
+        runExplore,
+        pageSize,
+        prevPage,
+        nextPage,
+      ];
+      controls.forEach((control) => {
+        control.disabled = !enabled;
+      });
+    };
+
+    const resetDatasetUI = () => {
+      schema = [];
+      cachedRowCount = 0;
+      rowCount.textContent = "Rows: —";
+      schemaBody.innerHTML = "";
+      schemaNote.textContent = "Load a CSV to view detected columns.";
+      profileBody.innerHTML = "";
+      filterList.innerHTML = "";
+      groupByOptions.innerHTML = "";
+      histogramChart.innerHTML = "";
+      categoryChart.innerHTML = "";
+      previewHead.innerHTML = "";
+      previewBody.innerHTML = "";
+      groupChart.innerHTML = "";
+      groupChartNote.textContent = "Run an exploration query with a group-by to render a chart.";
+      sqlPreview.textContent = "";
+      pageInfo.textContent = "Page 1";
+    };
+
+    const DUCKDB_VERSION = "1.29.0";
+    const DUCKDB_BUNDLES = {
+      mvp: {
+        mainModule: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-mvp.wasm`,
+        mainWorker: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-browser-mvp.worker.js`,
+      },
+      coi: {
+        mainModule: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-coi.wasm`,
+        mainWorker: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-browser-coi.worker.js`,
+        pthreadWorker: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-browser-coi.pthread.worker.js`,
+      },
+    };
+
     const initDuckDB = async () => {
-      const bundles = duckdb.getJsDelivrBundles();
-      const bundle = await duckdb.selectBundle(bundles);
-      const worker = new Worker(bundle.mainWorker);
+      const crossOriginIsolated = globalThis.crossOriginIsolated === true;
+      coiStatus.textContent = String(crossOriginIsolated);
+      const bundleName = crossOriginIsolated ? "coi" : "mvp";
+      const bundle = DUCKDB_BUNDLES[bundleName];
+      if (!bundle) {
+        throw new Error(`DuckDB bundle "${bundleName}" is not configured.`);
+      }
+      setDuckdbStatus("pending", bundleName);
+      addLog(`Initializing DuckDB with ${bundleName} bundle (COI=${crossOriginIsolated}).`);
+      const worker = new Worker(bundle.mainWorker, { type: "module" });
       db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
       await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
       conn = await db.connect();
+      duckdbReady = true;
+      setDuckdbControlsEnabled(true);
+      setDuckdbStatus("ready", bundleName);
+      addLog("DuckDB initialized and ready.");
     };
 
     const ensureDuckDB = async () => {
       if (!initPromise) {
         initPromise = initDuckDB();
       }
-      await initPromise;
+      try {
+        await initPromise;
+      } catch (error) {
+        duckdbFailed = true;
+        setDuckdbStatus("failed", bundleStatus.textContent || "—", error);
+        setDuckdbControlsEnabled(false);
+        throw error;
+      }
     };
 
     const registerFile = async (file) => {
@@ -981,26 +1176,99 @@
 
     const handleFile = async (file) => {
       if (!file) return;
-      setStatus(loadStatus, `Loading ${file.name}…`);
+      currentLoadId += 1;
+      const loadId = currentLoadId;
+      resetDatasetUI();
+      setStatus(loadStatus, `Reading ${file.name}…`);
+      addLog(`Selected file: ${file.name} (${file.size.toLocaleString()} bytes).`);
       try {
-        await ensureDuckDB();
-        await registerFile(file);
-        await createTable();
-        await updateSchema();
-        await updateRowCount();
-        refreshColumnSelectors();
-        renderGroupByOptions();
-        renderFilters();
-        await updateProfile();
-        await updatePreview();
-        await updateCharts();
-        setStatus(loadStatus, `Loaded ${file.name}`, true);
-        saveState();
+        if (file.size === 0) {
+          throw new Error("The selected file is empty.");
+        }
+        if (!duckdbFailed) {
+          setStatus(loadStatus, "Initializing DuckDB…");
+          try {
+            await ensureDuckDB();
+          } catch (error) {
+            duckdbFailed = true;
+            addLog(`DuckDB init failed during file load: ${formatError(error)}`, "error");
+          }
+        }
+        if (loadId !== currentLoadId) return;
+        if (duckdbReady) {
+          setStatus(loadStatus, "Loading into DuckDB…");
+          await registerFile(file);
+          if (loadId !== currentLoadId) return;
+          await createTable();
+          if (loadId !== currentLoadId) return;
+          setStatus(loadStatus, "Profiling…");
+          await updateSchema();
+          await updateRowCount();
+          refreshColumnSelectors();
+          renderGroupByOptions();
+          renderFilters();
+          await updateProfile();
+          await updatePreview();
+          await updateCharts();
+          setStatus(loadStatus, `Loaded ${file.name}`, true);
+          saveState();
+          addLog(`DuckDB load complete for ${file.name}.`);
+          return;
+        }
+        await fallbackPreview(file);
       } catch (error) {
         console.error("Failed to load CSV", error);
         const message = error && error.message ? error.message : "Check the console for details.";
         setStatus(loadStatus, `Failed to load CSV. ${message}`);
+        addLog(`CSV load failed: ${formatError(error)}`, "error");
       }
+    };
+
+    const fallbackPreview = async (file) => {
+      const LARGE_FILE_BYTES = 10 * 1024 * 1024;
+      const SAMPLE_ROWS = 200;
+      if (file.size > LARGE_FILE_BYTES) {
+        setStatus(loadStatus, "Large file detected. Showing a sampled preview without DuckDB.");
+        addLog("Large file detected; using sampled preview mode.", "warn");
+      } else {
+        setStatus(loadStatus, "DuckDB unavailable. Showing fallback preview.");
+      }
+      const text = await (file.size > LARGE_FILE_BYTES ? file.slice(0, 2 * 1024 * 1024).text() : file.text());
+      if (!text.trim()) {
+        throw new Error("The selected file appears to be empty.");
+      }
+      let rows = csvParse(text);
+      if (!rows.columns || !rows.columns.length) {
+        throw new Error("Unable to detect CSV headers.");
+      }
+      if (file.size > LARGE_FILE_BYTES) {
+        const parsedRows = csvParseRows(text);
+        const [header, ...dataRows] = parsedRows.filter((row) => row.length);
+        if (!header || !header.length) {
+          throw new Error("Unable to detect CSV headers in the sample.");
+        }
+        const trimmedRows = dataRows.slice(0, SAMPLE_ROWS);
+        rows = trimmedRows.map((row) => Object.fromEntries(header.map((key, index) => [key, row[index] ?? ""])));
+        rows.columns = header;
+      }
+      schema = rows.columns.map((name) => ({ name, type: "STRING" }));
+      schemaBody.innerHTML = "";
+      schema.forEach((col) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${col.name}</td><td>${col.type}</td>`;
+        schemaBody.appendChild(tr);
+      });
+      schemaNote.textContent = duckdbFailed ? "DuckDB failed to initialize; showing fallback preview only." : "DuckDB not ready; showing fallback preview only.";
+      cachedRowCount = rows.length;
+      rowCount.textContent = file.size > LARGE_FILE_BYTES ? `Rows: sample of ${rows.length}` : `Rows: ${rows.length.toLocaleString()}`;
+      renderPreviewTable(rows.slice(0, SAMPLE_ROWS));
+      profileBody.innerHTML = "<tr><td colspan=\"6\">Profiling requires DuckDB.</td></tr>";
+      histogramChart.innerHTML = "<p class=\"muted\">Charts require DuckDB.</p>";
+      categoryChart.innerHTML = "<p class=\"muted\">Charts require DuckDB.</p>";
+      groupChart.innerHTML = "<p class=\"muted\">Charts require DuckDB.</p>";
+      groupChartNote.textContent = "DuckDB is required for group-by charts.";
+      setStatus(loadStatus, `Loaded ${file.name} (fallback preview)`, true);
+      addLog("Fallback preview rendered.");
     };
 
     const loadDemoDataset = () => {
@@ -1123,16 +1391,28 @@ North,Corporate,2024-02,16510,66,3
       applyStateToControls();
       renderFilters();
       renderGroupByOptions();
-      if (schema.length) {
+      if (schema.length && duckdbReady) {
         refreshColumnSelectors();
         await updatePreview();
         await updateCharts();
       }
     });
 
+    hardResetButton.addEventListener("click", () => {
+      clearPrefixedStorage();
+      addLog("Hard reset: cleared localStorage keys and reloading.");
+      location.reload();
+    });
+
     const boot = async () => {
       loadState();
       applyStateToControls();
+      setDuckdbControlsEnabled(false);
+      setDuckdbStatus("pending", "—");
+      coiStatus.textContent = String(globalThis.crossOriginIsolated === true);
+      envUserAgent.textContent = navigator.userAgent;
+      envOrigin.textContent = window.location.origin || "file://";
+      envFile.textContent = window.location.protocol === "file:" ? "true" : "false";
       try {
         await ensureDuckDB();
         await handleFile(loadDemoDataset());
@@ -1147,8 +1427,12 @@ North,Corporate,2024-02,16510,66,3
         await updateCharts();
       } catch (error) {
         console.error("Failed to initialize DuckDB", error);
+        duckdbFailed = true;
         const message = error && error.message ? error.message : "Check the console for details.";
-        setStatus(loadStatus, `Failed to initialize DuckDB. ${message}`);
+        setDuckdbStatus("failed", bundleStatus.textContent || "—", error);
+        setDuckdbControlsEnabled(false);
+        setStatus(loadStatus, `DuckDB failed to initialize. ${message}`);
+        addLog(`DuckDB init failed: ${formatError(error)}`, "error");
       }
     };
 
