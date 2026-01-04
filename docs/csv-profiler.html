@@ -558,7 +558,7 @@
   </main>
 
   <script type="module">
-    import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist/duckdb-browser.mjs";
+    import * as duckdb from "../vendor/duckdb-wasm/1.29.0/dist/duckdb-browser.mjs";
     import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.11/+esm";
     import { csvParse, csvParseRows } from "https://cdn.jsdelivr.net/npm/d3-dsv@3.0.1/+esm";
 
@@ -747,15 +747,16 @@
     };
 
     const DUCKDB_VERSION = "1.29.0";
+    const DUCKDB_DIST = new URL(`../vendor/duckdb-wasm/${DUCKDB_VERSION}/dist/`, import.meta.url);
     const DUCKDB_BUNDLES = {
       mvp: {
-        mainModule: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-mvp.wasm`,
-        mainWorker: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-browser-mvp.worker.js`,
+        mainModule: new URL("duckdb-mvp.wasm", DUCKDB_DIST),
+        mainWorker: new URL("duckdb-browser-mvp.worker.js", DUCKDB_DIST),
       },
       coi: {
-        mainModule: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-coi.wasm`,
-        mainWorker: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-browser-coi.worker.js`,
-        pthreadWorker: `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/dist/duckdb-browser-coi.pthread.worker.js`,
+        mainModule: new URL("duckdb-coi.wasm", DUCKDB_DIST),
+        mainWorker: new URL("duckdb-browser-coi.worker.js", DUCKDB_DIST),
+        pthreadWorker: new URL("duckdb-browser-coi.pthread.worker.js", DUCKDB_DIST),
       },
     };
 
@@ -769,7 +770,7 @@
       }
       setDuckdbStatus("pending", bundleName);
       addLog(`Initializing DuckDB with ${bundleName} bundle (COI=${crossOriginIsolated}).`);
-      const worker = new Worker(bundle.mainWorker, { type: "module" });
+      const worker = new Worker(new URL(bundle.mainWorker, import.meta.url), { type: "module" });
       db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
       await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
       conn = await db.connect();
