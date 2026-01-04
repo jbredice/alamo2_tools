@@ -747,7 +747,7 @@
     };
 
     const DUCKDB_VERSION = "1.29.0";
-    const DUCKDB_DIST = `./vendor/duckdb-wasm/${DUCKDB_VERSION}/dist/`;
+    const DUCKDB_DIST = new URL(`./vendor/duckdb-wasm/${DUCKDB_VERSION}/dist/`, import.meta.url).href;
     const DUCKDB_BUNDLES = {
       mvp: {
         mainModule: DUCKDB_DIST + "duckdb-mvp.wasm",
