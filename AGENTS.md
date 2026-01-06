@@ -10,14 +10,14 @@ Build small, static, self-contained browser tools for data exploration, hosted o
 - Must work on GitHub Pages and when opened locally.
 
 ## Default stack
-- DuckDB-WASM for analytics
-- Observable Plot for charts
-- Observable Inputs (or light custom UI) for controls
+- D3.js for charts and lightweight data utilities
+- Lodash for data wrangling and convenience helpers
+- Light custom UI controls (vanilla JS/HTML/CSS)
 
 ## UX requirements (minimum)
 - Import: drag/drop + file picker; show schema + row count
 - Profiling: null %, distinct, top values, min/max
-- Explore: filters + aggregation (or SQL editor if tool is SQL-first)
+- Explore: filters + aggregation (simple in-browser ops; avoid SQL-first UX)
 - Output: table + chart, both interactive
 - Persist UI state in localStorage + Reset button
 
