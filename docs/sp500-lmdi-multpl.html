@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>S&P 500 LMDI Decomposition (Multpl)</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b1020;
+      --panel: #141b2e;
+      --panel-strong: #1b243b;
+      --text: #e8eefc;
+      --muted: #a9b5d3;
+      --accent: #5cd4ff;
+      --accent-2: #ffd06b;
+      --good: #5de18c;
+      --warn: #ff9f6b;
+      --bad: #ff6b6b;
+      --line: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1e2c4d, var(--bg) 60%);
+      color: var(--text);
+      padding: 2rem clamp(1.2rem, 3vw, 3rem) 3rem;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 3vw, 2.8rem);
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 1000px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 1.4rem;
+      border: 1px solid var(--line);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+    }
+
+    .panel + .panel {
+      margin-top: 1.2rem;
+    }
+
+    .controls {
+      display: grid;
+      gap: 1rem;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    select,
+    button,
+    input[type="text"],
+    input[type="file"],
+    input[type="checkbox"] {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      color: var(--text);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button.primary {
+      background: linear-gradient(120deg, var(--accent), #4b7bff);
+      border: none;
+      color: #0c1222;
+    }
+
+    button.secondary {
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    button.warn {
+      background: rgba(255, 159, 107, 0.2);
+      color: var(--warn);
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .note {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .status {
+      font-size: 0.9rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 12px;
+      background: rgba(92, 212, 255, 0.1);
+      border: 1px solid rgba(92, 212, 255, 0.4);
+      color: var(--accent);
+      margin-top: 0.8rem;
+    }
+
+    .status.warn {
+      background: rgba(255, 159, 107, 0.1);
+      border-color: rgba(255, 159, 107, 0.4);
+      color: var(--warn);
+    }
+
+    .status.bad {
+      background: rgba(255, 107, 107, 0.1);
+      border-color: rgba(255, 107, 107, 0.4);
+      color: var(--bad);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+
+    .summary-card {
+      background: var(--panel-strong);
+      border-radius: 12px;
+      padding: 0.7rem;
+      border: 1px solid var(--line);
+    }
+
+    .summary-card h4 {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .summary-card p {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .chart {
+      margin-top: 1rem;
+      background: #0c1426;
+      border-radius: 12px;
+      padding: 0.5rem;
+      border: 1px solid var(--line);
+    }
+
+    .table-wrap {
+      margin-top: 1rem;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.5rem 0.7rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      background: var(--panel-strong);
+      color: var(--muted);
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(92, 212, 255, 0.15);
+      font-size: 0.8rem;
+      color: var(--accent);
+      border: 1px solid rgba(92, 212, 255, 0.35);
+    }
+
+    .log {
+      margin-top: 0.8rem;
+      background: #0b1324;
+      border-radius: 12px;
+      padding: 0.7rem;
+      border: 1px solid var(--line);
+      max-height: 160px;
+      overflow: auto;
+      font-size: 0.85rem;
+    }
+
+    .log-entry {
+      margin-bottom: 0.5rem;
+      color: var(--muted);
+    }
+
+    .drop-zone {
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      padding: 1rem;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(92, 212, 255, 0.08);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .flex {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>S&amp;P 500 LMDI Decomposition (Multpl)</h1>
+    <p>
+      Fetch S&amp;P 500 fundamentals and valuation multiples from multpl.com, align monthly data,
+      and run a two-factor additive LMDI decomposition over a selected date range.
+    </p>
+  </header>
+
+  <section class="layout">
+    <div>
+      <div class="panel">
+        <h3>Controls</h3>
+        <div class="controls">
+          <div>
+            <label for="fetchMode">Fetch mode</label>
+            <select id="fetchMode">
+              <option value="proxy">Proxy (r.jina.ai) — works locally</option>
+              <option value="direct">Direct (may fail with CORS)</option>
+            </select>
+          </div>
+          <div>
+            <label for="identity">Identity</label>
+            <select id="identity"></select>
+          </div>
+          <div class="control-row">
+            <label class="flex" for="loadAll">
+              <input id="loadAll" type="checkbox" />
+              Load all series
+            </label>
+            <button id="loadData" class="primary">Load data</button>
+          </div>
+          <div class="control-row">
+            <div>
+              <label for="startMonth">Start month</label>
+              <select id="startMonth"></select>
+            </div>
+            <div>
+              <label for="endMonth">End month</label>
+              <select id="endMonth"></select>
+            </div>
+          </div>
+          <div class="control-row">
+            <button id="runLmdi" class="primary">Run decomposition</button>
+            <button id="reset" class="secondary">Reset UI state</button>
+            <button id="clearCache" class="warn">Clear cache</button>
+          </div>
+          <p class="note">
+            Fundamentals (earnings, sales, book value) are forward-filled when missing for a month.
+            Decomposition requires all endpoint values to be positive.
+          </p>
+          <div id="status" class="status">Ready.</div>
+          <div id="warning" class="status warn" style="display:none"></div>
+          <div id="error" class="status bad" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Summary</h3>
+        <div class="summary-grid" id="summaryGrid"></div>
+        <div class="chart" id="contribChart"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Self-test</h3>
+        <p class="note">Runs on a tiny built-in dataset to verify LMDI balance.</p>
+        <button id="selfTest" class="secondary" style="margin-top:0.6rem">Run self-test</button>
+        <div class="log" id="selfTestLog"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Optional CSV Import</h3>
+        <p class="note">Drag/drop or pick a CSV file to inspect schema and row count.</p>
+        <div id="dropZone" class="drop-zone" style="margin-top:0.7rem">Drop CSV here</div>
+        <input id="fileInput" type="file" accept=".csv" style="margin-top:0.6rem" />
+        <div class="log" id="importLog"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h3>Charts</h3>
+        <div class="chart" id="priceChart"></div>
+        <div class="chart" id="seriesChart"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Aligned data</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Price</th>
+                <th>Fundamental</th>
+                <th>Multiple</th>
+                <th>Implied Multiple</th>
+              </tr>
+            </thead>
+            <tbody id="dataRows"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button id="prevPage" class="secondary">Prev</button>
+          <div id="pageInfo" class="muted"></div>
+          <button id="nextPage" class="secondary">Next</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script type="module">
+    import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm";
+    import _ from "https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/lodash.js";
+
+    const SOURCES = {
+      price: "https://www.multpl.com/s-p-500-historical-prices",
+      earnings: "https://www.multpl.com/s-p-500-earnings",
+      pe: "https://www.multpl.com/s-p-500-pe-ratio",
+      sales: "https://www.multpl.com/s-p-500-sales",
+      ps: "https://www.multpl.com/s-p-500-price-to-sales",
+      book: "https://www.multpl.com/s-p-500-book-value",
+      pb: "https://www.multpl.com/s-p-500-price-to-book"
+    };
+
+    const IDENTITIES = [
+      { value: "earnings", label: "Price = Earnings × P/E", fundamental: "earnings", multiple: "pe" },
+      { value: "sales", label: "Price = Sales × P/S", fundamental: "sales", multiple: "ps" },
+      { value: "book", label: "Price = Book Value × P/B", fundamental: "book", multiple: "pb" }
+    ];
+
+    const STATE_KEY = "sp500-lmdi-multpl-state";
+    const CACHE_PREFIX = "sp500-lmdi-cache:";
+    const PAGE_SIZE = 36;
+
+    const elements = {
+      fetchMode: document.getElementById("fetchMode"),
+      identity: document.getElementById("identity"),
+      loadAll: document.getElementById("loadAll"),
+      loadData: document.getElementById("loadData"),
+      startMonth: document.getElementById("startMonth"),
+      endMonth: document.getElementById("endMonth"),
+      runLmdi: document.getElementById("runLmdi"),
+      reset: document.getElementById("reset"),
+      clearCache: document.getElementById("clearCache"),
+      status: document.getElementById("status"),
+      warning: document.getElementById("warning"),
+      error: document.getElementById("error"),
+      summaryGrid: document.getElementById("summaryGrid"),
+      dataRows: document.getElementById("dataRows"),
+      pageInfo: document.getElementById("pageInfo"),
+      prevPage: document.getElementById("prevPage"),
+      nextPage: document.getElementById("nextPage"),
+      priceChart: document.getElementById("priceChart"),
+      seriesChart: document.getElementById("seriesChart"),
+      contribChart: document.getElementById("contribChart"),
+      selfTest: document.getElementById("selfTest"),
+      selfTestLog: document.getElementById("selfTestLog"),
+      dropZone: document.getElementById("dropZone"),
+      fileInput: document.getElementById("fileInput"),
+      importLog: document.getElementById("importLog")
+    };
+
+    let cachedSeries = {};
+    let alignedRows = [];
+    let pageIndex = 0;
+
+    function setStatus(message) {
+      elements.status.textContent = message;
+    }
+
+    function setWarning(message) {
+      if (message) {
+        elements.warning.style.display = "block";
+        elements.warning.textContent = message;
+      } else {
+        elements.warning.style.display = "none";
+      }
+    }
+
+    function setError(message) {
+      if (message) {
+        elements.error.style.display = "block";
+        elements.error.textContent = message;
+      } else {
+        elements.error.style.display = "none";
+      }
+    }
+
+    function addLog(container, message) {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.textContent = message;
+      container.prepend(entry);
+    }
+
+    function saveState() {
+      const state = {
+        fetchMode: elements.fetchMode.value,
+        identity: elements.identity.value,
+        loadAll: elements.loadAll.checked,
+        startMonth: elements.startMonth.value,
+        endMonth: elements.endMonth.value
+      };
+      localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      const raw = localStorage.getItem(STATE_KEY);
+      if (!raw) return;
+      try {
+        const state = JSON.parse(raw);
+        if (state.fetchMode) elements.fetchMode.value = state.fetchMode;
+        if (state.identity) elements.identity.value = state.identity;
+        if (typeof state.loadAll === "boolean") elements.loadAll.checked = state.loadAll;
+        if (state.startMonth) elements.startMonth.value = state.startMonth;
+        if (state.endMonth) elements.endMonth.value = state.endMonth;
+      } catch (error) {
+        console.warn("Failed to load state", error);
+      }
+    }
+
+    function buildProxyUrl(url) {
+      return `https://r.jina.ai/http://${url}`;
+    }
+
+    function cacheKey(url, mode) {
+      return `${CACHE_PREFIX}${mode}:${url}`;
+    }
+
+    async function fetchText(url, mode) {
+      const key = cacheKey(url, mode);
+      if (cachedSeries[key]) {
+        return cachedSeries[key];
+      }
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed?.text) {
+            cachedSeries[key] = parsed.text;
+            return parsed.text;
+          }
+        } catch (error) {
+          console.warn("Failed to parse cache", error);
+        }
+      }
+
+      const target = mode === "proxy" ? buildProxyUrl(url) : url;
+      const response = await fetch(target, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Fetch failed (${response.status}) for ${url}`);
+      }
+      const text = await response.text();
+      cachedSeries[key] = text;
+      localStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), text }));
+      return text;
+    }
+
+    function parseMonthKey(text) {
+      const trimmed = text.replace(/\s+/g, " ").trim();
+      const parsers = [
+        d3.timeParse("%b %Y"),
+        d3.timeParse("%B %Y"),
+        d3.timeParse("%b %d, %Y"),
+        d3.timeParse("%B %d, %Y"),
+        d3.timeParse("%Y-%m-%d")
+      ];
+      for (const parser of parsers) {
+        const parsed = parser(trimmed);
+        if (parsed) {
+          return d3.timeFormat("%Y-%m")(parsed);
+        }
+      }
+      const fallback = new Date(trimmed);
+      if (!Number.isNaN(fallback.getTime())) {
+        return d3.timeFormat("%Y-%m")(fallback);
+      }
+      return null;
+    }
+
+    function parseNumber(text) {
+      if (!text) return null;
+      const cleaned = text.replace(/[,\$%]/g, "").trim();
+      if (!cleaned) return null;
+      const value = Number(cleaned);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function parseFromHtml(text) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
+      const table = doc.querySelector("table");
+      if (!table) return [];
+      const rows = Array.from(table.querySelectorAll("tr"));
+      const results = [];
+      for (const row of rows) {
+        const cells = Array.from(row.querySelectorAll("td")).map((cell) => cell.textContent.trim());
+        if (cells.length < 2) continue;
+        const monthKey = parseMonthKey(cells[0]);
+        if (!monthKey) continue;
+        const value = parseNumber(cells[1]);
+        if (value === null) continue;
+        results.push({ month: monthKey, value });
+      }
+      return results;
+    }
+
+    function parseFromText(text) {
+      const lines = text.split(/\r?\n/);
+      const results = [];
+      const monthRegex = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}/i;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!monthRegex.test(trimmed)) continue;
+        const parts = trimmed.split(/\s{2,}|\t/).filter(Boolean);
+        if (parts.length < 2) continue;
+        const monthKey = parseMonthKey(parts[0]);
+        if (!monthKey) continue;
+        const value = parseNumber(parts[1]);
+        if (value === null) continue;
+        results.push({ month: monthKey, value });
+      }
+      return results;
+    }
+
+    function parseMultplSeries(text) {
+      const htmlResults = parseFromHtml(text);
+      if (htmlResults.length > 0) return htmlResults;
+      return parseFromText(text);
+    }
+
+    function alignSeries(priceSeries, fundamentalSeries, multipleSeries) {
+      const priceMap = new Map(priceSeries.map((d) => [d.month, d.value]));
+      const fundamentalMap = new Map(fundamentalSeries.map((d) => [d.month, d.value]));
+      const multipleMap = new Map(multipleSeries.map((d) => [d.month, d.value]));
+
+      const months = _.sortBy(
+        _.intersection(Array.from(priceMap.keys()), Array.from(multipleMap.keys()))
+      );
+
+      let lastFundamental = null;
+      let forwardFillCount = 0;
+      const rows = [];
+      for (const month of months) {
+        const price = priceMap.get(month);
+        const multiple = multipleMap.get(month);
+        let fundamental = fundamentalMap.get(month) ?? null;
+        if (fundamental === null && lastFundamental !== null) {
+          fundamental = lastFundamental;
+          forwardFillCount += 1;
+        }
+        if (fundamental !== null) {
+          lastFundamental = fundamental;
+        }
+        if (fundamental === null) {
+          continue;
+        }
+        rows.push({
+          month,
+          price,
+          fundamental,
+          multiple,
+          impliedMultiple: price / fundamental
+        });
+      }
+      return { rows, forwardFillCount };
+    }
+
+    function formatValue(value) {
+      if (value === null || value === undefined || Number.isNaN(value)) return "–";
+      return d3.format(",.2f")(value);
+    }
+
+    function formatPercent(value) {
+      if (!Number.isFinite(value)) return "–";
+      return d3.format(".1%")(value);
+    }
+
+    function computeLogMean(y1, y0) {
+      if (y1 === y0) return y0;
+      return (y1 - y0) / (Math.log(y1) - Math.log(y0));
+    }
+
+    function runLmdi(startRow, endRow) {
+      const y0 = startRow.price;
+      const y1 = endRow.price;
+      const a0 = startRow.fundamental;
+      const a1 = endRow.fundamental;
+      const b0 = startRow.multiple;
+      const b1 = endRow.multiple;
+
+      if ([y0, y1, a0, a1, b0, b1].some((v) => !Number.isFinite(v) || v <= 0)) {
+        throw new Error("All endpoint values must be positive for LMDI.");
+      }
+
+      const logMean = computeLogMean(y1, y0);
+      const contributionA = logMean * Math.log(a1 / a0);
+      const contributionB = logMean * Math.log(b1 / b0);
+      const delta = y1 - y0;
+      const residual = delta - (contributionA + contributionB);
+      const percentA = delta !== 0 ? contributionA / delta : null;
+      const percentB = delta !== 0 ? contributionB / delta : null;
+
+      return {
+        y0,
+        y1,
+        delta,
+        a0,
+        a1,
+        b0,
+        b1,
+        logMean,
+        contributionA,
+        contributionB,
+        residual,
+        percentA,
+        percentB
+      };
+    }
+
+    function renderSummary(result) {
+      const cards = [
+        { label: "y₀ (Price)", value: formatValue(result.y0) },
+        { label: "y₁ (Price)", value: formatValue(result.y1) },
+        { label: "Δy", value: formatValue(result.delta) },
+        { label: "a₀ (Fundamental)", value: formatValue(result.a0) },
+        { label: "a₁ (Fundamental)", value: formatValue(result.a1) },
+        { label: "b₀ (Multiple)", value: formatValue(result.b0) },
+        { label: "b₁ (Multiple)", value: formatValue(result.b1) },
+        { label: "Cₐ", value: formatValue(result.contributionA) },
+        { label: "C_b", value: formatValue(result.contributionB) },
+        { label: "Residual", value: formatValue(result.residual) },
+        { label: "Cₐ / Δy", value: formatPercent(result.percentA) },
+        { label: "C_b / Δy", value: formatPercent(result.percentB) }
+      ];
+
+      elements.summaryGrid.innerHTML = "";
+      for (const card of cards) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "summary-card";
+        wrapper.innerHTML = `<h4>${card.label}</h4><p>${card.value}</p>`;
+        elements.summaryGrid.append(wrapper);
+      }
+    }
+
+    function renderTable(rows) {
+      const start = pageIndex * PAGE_SIZE;
+      const pageRows = rows.slice(start, start + PAGE_SIZE);
+      elements.dataRows.innerHTML = "";
+      for (const row of pageRows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.month}</td>
+          <td>${formatValue(row.price)}</td>
+          <td>${formatValue(row.fundamental)}</td>
+          <td>${formatValue(row.multiple)}</td>
+          <td>${formatValue(row.impliedMultiple)}</td>
+        `;
+        elements.dataRows.append(tr);
+      }
+      const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+      elements.pageInfo.textContent = `Page ${pageIndex + 1} of ${totalPages}`;
+      elements.prevPage.disabled = pageIndex === 0;
+      elements.nextPage.disabled = pageIndex >= totalPages - 1;
+    }
+
+    function renderPriceChart(rows) {
+      elements.priceChart.innerHTML = "";
+      if (!rows.length) return;
+      const width = elements.priceChart.clientWidth - 10;
+      const height = 220;
+      const svg = d3
+        .create("svg")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("width", "100%")
+        .attr("height", height);
+
+      const parseMonth = d3.timeParse("%Y-%m");
+      const series = rows.map((d) => ({ ...d, date: parseMonth(d.month) }));
+      const x = d3.scaleTime().domain(d3.extent(series, (d) => d.date)).range([40, width - 20]);
+      const y = d3.scaleLinear().domain(d3.extent(series, (d) => d.price)).nice().range([height - 30, 20]);
+
+      const line = d3
+        .line()
+        .x((d) => x(d.date))
+        .y((d) => y(d.price));
+
+      svg.append("path")
+        .datum(series)
+        .attr("fill", "none")
+        .attr("stroke", "#5cd4ff")
+        .attr("stroke-width", 2)
+        .attr("d", line);
+
+      svg.append("g")
+        .attr("transform", `translate(0,${height - 30})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat("%Y-%m")))
+        .call((g) => g.selectAll("text").attr("fill", "#a9b5d3"))
+        .call((g) => g.selectAll("path, line").attr("stroke", "#39405a"));
+
+      svg.append("g")
+        .attr("transform", "translate(40,0)")
+        .call(d3.axisLeft(y).ticks(5))
+        .call((g) => g.selectAll("text").attr("fill", "#a9b5d3"))
+        .call((g) => g.selectAll("path, line").attr("stroke", "#39405a"));
+
+      elements.priceChart.append(svg.node());
+    }
+
+    function renderSeriesChart(rows) {
+      elements.seriesChart.innerHTML = "";
+      if (!rows.length) return;
+      const width = elements.seriesChart.clientWidth - 10;
+      const height = 220;
+      const svg = d3
+        .create("svg")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("width", "100%")
+        .attr("height", height);
+
+      const parseMonth = d3.timeParse("%Y-%m");
+      const series = rows.map((d) => ({ ...d, date: parseMonth(d.month) }));
+      const x = d3.scaleTime().domain(d3.extent(series, (d) => d.date)).range([40, width - 20]);
+      const y = d3
+        .scaleLinear()
+        .domain([0, d3.max(series, (d) => Math.max(d.fundamental, d.multiple))])
+        .nice()
+        .range([height - 30, 20]);
+
+      const line = (key, color) =>
+        d3
+          .line()
+          .x((d) => x(d.date))
+          .y((d) => y(d[key]));
+
+      svg.append("path")
+        .datum(series)
+        .attr("fill", "none")
+        .attr("stroke", "#ffd06b")
+        .attr("stroke-width", 2)
+        .attr("d", line("fundamental"));
+
+      svg.append("path")
+        .datum(series)
+        .attr("fill", "none")
+        .attr("stroke", "#5de18c")
+        .attr("stroke-width", 2)
+        .attr("d", line("multiple"));
+
+      svg.append("g")
+        .attr("transform", `translate(0,${height - 30})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat("%Y-%m")))
+        .call((g) => g.selectAll("text").attr("fill", "#a9b5d3"))
+        .call((g) => g.selectAll("path, line").attr("stroke", "#39405a"));
+
+      svg.append("g")
+        .attr("transform", "translate(40,0)")
+        .call(d3.axisLeft(y).ticks(5))
+        .call((g) => g.selectAll("text").attr("fill", "#a9b5d3"))
+        .call((g) => g.selectAll("path, line").attr("stroke", "#39405a"));
+
+      const legend = svg.append("g").attr("transform", `translate(${width - 160}, 15)`);
+      legend.append("rect").attr("width", 12).attr("height", 12).attr("fill", "#ffd06b");
+      legend.append("text").attr("x", 18).attr("y", 11).text("Fundamental").attr("fill", "#a9b5d3").attr("font-size", 11);
+      legend.append("rect").attr("y", 18).attr("width", 12).attr("height", 12).attr("fill", "#5de18c");
+      legend.append("text").attr("x", 18).attr("y", 29).text("Multiple").attr("fill", "#a9b5d3").attr("font-size", 11);
+
+      elements.seriesChart.append(svg.node());
+    }
+
+    function renderContributionChart(result) {
+      elements.contribChart.innerHTML = "";
+      if (!result) return;
+      const data = [
+        { label: "Fundamental", value: result.contributionA },
+        { label: "Multiple", value: result.contributionB }
+      ];
+      const width = elements.contribChart.clientWidth - 10;
+      const height = 160;
+      const svg = d3
+        .create("svg")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("width", "100%")
+        .attr("height", height);
+      const x = d3.scaleBand().domain(data.map((d) => d.label)).range([40, width - 20]).padding(0.3);
+      const y = d3.scaleLinear().domain(d3.extent([0, ...data.map((d) => d.value)])).nice().range([height - 30, 20]);
+
+      svg.append("g")
+        .attr("transform", `translate(0,${height - 30})`)
+        .call(d3.axisBottom(x))
+        .call((g) => g.selectAll("text").attr("fill", "#a9b5d3"))
+        .call((g) => g.selectAll("path, line").attr("stroke", "#39405a"));
+
+      svg.append("g")
+        .attr("transform", "translate(40,0)")
+        .call(d3.axisLeft(y).ticks(4))
+        .call((g) => g.selectAll("text").attr("fill", "#a9b5d3"))
+        .call((g) => g.selectAll("path, line").attr("stroke", "#39405a"));
+
+      svg.selectAll("rect")
+        .data(data)
+        .enter()
+        .append("rect")
+        .attr("x", (d) => x(d.label))
+        .attr("y", (d) => y(Math.max(0, d.value)))
+        .attr("height", (d) => Math.abs(y(d.value) - y(0)))
+        .attr("width", x.bandwidth())
+        .attr("fill", "#5cd4ff");
+
+      elements.contribChart.append(svg.node());
+    }
+
+    async function loadSeries() {
+      setError("");
+      setWarning("");
+      setStatus("Fetching data...");
+      const mode = elements.fetchMode.value;
+      const identity = IDENTITIES.find((id) => id.value === elements.identity.value) ?? IDENTITIES[0];
+      const keys = elements.loadAll.checked
+        ? Object.keys(SOURCES)
+        : ["price", identity.fundamental, identity.multiple];
+
+      try {
+        const responses = await Promise.all(
+          keys.map(async (key) => {
+            const text = await fetchText(SOURCES[key], mode);
+            const series = parseMultplSeries(text);
+            if (!series.length) {
+              throw new Error(`No data found for ${key}. Parsing may need adjustment.`);
+            }
+            return [key, series];
+          })
+        );
+        cachedSeries = Object.fromEntries(responses);
+        setStatus(`Loaded ${responses.length} series.`);
+        alignAndPopulate(identity);
+      } catch (error) {
+        setError(error.message);
+        setStatus("Fetch failed.");
+      }
+    }
+
+    function alignAndPopulate(identity) {
+      const priceSeries = cachedSeries.price ?? [];
+      const fundamentalSeries = cachedSeries[identity.fundamental] ?? [];
+      const multipleSeries = cachedSeries[identity.multiple] ?? [];
+      const { rows, forwardFillCount } = alignSeries(priceSeries, fundamentalSeries, multipleSeries);
+      alignedRows = rows;
+
+      if (forwardFillCount > 0) {
+        setWarning(`Forward-filled ${forwardFillCount} fundamental values.`);
+      } else {
+        setWarning("");
+      }
+
+      const months = rows.map((row) => row.month);
+      elements.startMonth.innerHTML = "";
+      elements.endMonth.innerHTML = "";
+      months.forEach((month) => {
+        const optionStart = document.createElement("option");
+        optionStart.value = month;
+        optionStart.textContent = month;
+        const optionEnd = optionStart.cloneNode(true);
+        elements.startMonth.append(optionStart);
+        elements.endMonth.append(optionEnd);
+      });
+
+      if (months.length > 0) {
+        elements.startMonth.value = months[0];
+        elements.endMonth.value = months[months.length - 1];
+      }
+
+      loadState();
+      saveState();
+      pageIndex = 0;
+      renderTable(rows);
+      renderPriceChart(rows);
+      renderSeriesChart(rows);
+    }
+
+    function getSelectedRows() {
+      const start = elements.startMonth.value;
+      const end = elements.endMonth.value;
+      const startIndex = alignedRows.findIndex((row) => row.month === start);
+      const endIndex = alignedRows.findIndex((row) => row.month === end);
+      if (startIndex === -1 || endIndex === -1) {
+        throw new Error("Start or end month is not available.");
+      }
+      const [from, to] = startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+      return { startRow: alignedRows[from], endRow: alignedRows[to], rangeRows: alignedRows.slice(from, to + 1) };
+    }
+
+    function checkImpliedMultiple(startRow, endRow) {
+      const impliedStart = startRow.price / startRow.fundamental;
+      const impliedEnd = endRow.price / endRow.fundamental;
+      const diffStart = Math.abs(impliedStart - startRow.multiple) / startRow.multiple;
+      const diffEnd = Math.abs(impliedEnd - endRow.multiple) / endRow.multiple;
+      if (diffStart > 0.01 || diffEnd > 0.01) {
+        setWarning("Implied multiple differs from ratio series by more than 1% at endpoints.");
+      }
+    }
+
+    function handleRunLmdi() {
+      setError("");
+      try {
+        const { startRow, endRow, rangeRows } = getSelectedRows();
+        const result = runLmdi(startRow, endRow);
+        renderSummary(result);
+        renderContributionChart(result);
+        renderPriceChart(rangeRows);
+        renderSeriesChart(rangeRows);
+        pageIndex = 0;
+        renderTable(rangeRows);
+        checkImpliedMultiple(startRow, endRow);
+        setStatus("Decomposition complete.");
+        saveState();
+      } catch (error) {
+        setError(error.message);
+      }
+    }
+
+    function clearCache() {
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith(CACHE_PREFIX))
+        .forEach((key) => localStorage.removeItem(key));
+      cachedSeries = {};
+      setStatus("Cache cleared.");
+    }
+
+    function runSelfTest() {
+      elements.selfTestLog.innerHTML = "";
+      const demo = [
+        { month: "2024-01", fundamental: 100, multiple: 10 },
+        { month: "2024-02", fundamental: 110, multiple: 10 },
+        { month: "2024-03", fundamental: 110, multiple: 11 }
+      ].map((row) => ({ ...row, price: row.fundamental * row.multiple }));
+      const result = runLmdi(demo[0], demo[2]);
+      const deltaMatch = Math.abs(result.delta - (result.contributionA + result.contributionB));
+      addLog(elements.selfTestLog, `Balance check residual: ${deltaMatch.toFixed(6)}`);
+      const edgeCase = runLmdi(demo[1], demo[1]);
+      addLog(elements.selfTestLog, `Edge case (same endpoints) residual: ${edgeCase.residual.toFixed(6)}`);
+      if (deltaMatch < 1e-6) {
+        addLog(elements.selfTestLog, "✅ LMDI balance passes on demo dataset.");
+      } else {
+        addLog(elements.selfTestLog, "❌ LMDI balance failed on demo dataset.");
+      }
+    }
+
+    function setupImport() {
+      const handleFiles = async (files) => {
+        if (!files.length) return;
+        const file = files[0];
+        const text = await file.text();
+        const rows = d3.csvParse(text);
+        elements.importLog.innerHTML = "";
+        addLog(elements.importLog, `Rows: ${rows.length}`);
+        addLog(elements.importLog, `Columns: ${rows.columns.join(", ")}`);
+      };
+
+      elements.dropZone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        elements.dropZone.classList.add("dragover");
+      });
+      elements.dropZone.addEventListener("dragleave", () => {
+        elements.dropZone.classList.remove("dragover");
+      });
+      elements.dropZone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        elements.dropZone.classList.remove("dragover");
+        handleFiles(event.dataTransfer.files);
+      });
+      elements.fileInput.addEventListener("change", (event) => {
+        handleFiles(event.target.files);
+      });
+    }
+
+    function populateIdentityOptions() {
+      elements.identity.innerHTML = "";
+      IDENTITIES.forEach((identity) => {
+        const option = document.createElement("option");
+        option.value = identity.value;
+        option.textContent = identity.label;
+        elements.identity.append(option);
+      });
+    }
+
+    function init() {
+      populateIdentityOptions();
+      loadState();
+      setupImport();
+      elements.loadData.addEventListener("click", loadSeries);
+      elements.runLmdi.addEventListener("click", handleRunLmdi);
+      elements.reset.addEventListener("click", () => {
+        localStorage.removeItem(STATE_KEY);
+        location.reload();
+      });
+      elements.clearCache.addEventListener("click", clearCache);
+      elements.selfTest.addEventListener("click", runSelfTest);
+      elements.prevPage.addEventListener("click", () => {
+        pageIndex = Math.max(0, pageIndex - 1);
+        renderTable(alignedRows);
+      });
+      elements.nextPage.addEventListener("click", () => {
+        pageIndex += 1;
+        renderTable(alignedRows);
+      });
+      [elements.fetchMode, elements.identity, elements.loadAll, elements.startMonth, elements.endMonth].forEach(
+        (el) => el.addEventListener("change", saveState)
+      );
+    }
+
+    init();
+  </script>
+</body>
+</html>
