@@ -381,13 +381,13 @@
     import _ from "https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/lodash.js";
 
     const SOURCES = {
-      price: "https://www.multpl.com/s-p-500-historical-prices",
-      earnings: "https://www.multpl.com/s-p-500-earnings",
-      pe: "https://www.multpl.com/s-p-500-pe-ratio",
-      sales: "https://www.multpl.com/s-p-500-sales",
-      ps: "https://www.multpl.com/s-p-500-price-to-sales",
-      book: "https://www.multpl.com/s-p-500-book-value",
-      pb: "https://www.multpl.com/s-p-500-price-to-book"
+      price: "https://www.multpl.com/s-p-500-historical-prices/table/by-month",
+      earnings: "https://www.multpl.com/s-p-500-earnings/table/by-month",
+      pe: "https://www.multpl.com/s-p-500-pe-ratio/table/by-month",
+      sales: "https://www.multpl.com/s-p-500-sales/table/by-month",
+      ps: "https://www.multpl.com/s-p-500-price-to-sales/table/by-month",
+      book: "https://www.multpl.com/s-p-500-book-value/table/by-month",
+      pb: "https://www.multpl.com/s-p-500-price-to-book/table/by-month"
     };
 
     const IDENTITIES = [
@@ -488,7 +488,7 @@
     }
 
     function buildProxyUrl(url) {
-      return `https://r.jina.ai/http://${url}`;
+      return `https://r.jina.ai/${url}`;
     }
 
     function cacheKey(url, mode) {
